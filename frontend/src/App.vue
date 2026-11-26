@@ -35,6 +35,18 @@ function onServerMessage(message: ServerMessage): void {
     case 'connection.status':
       onGeminiStatus(message.gemini);
       break;
+    case 'agent.state':
+      log.add('system', `State: ${message.state}`);
+      break;
+    case 'tool.call':
+      log.add('tool', `→ ${message.name}(${JSON.stringify(message.args)})`);
+      break;
+    case 'tool.result':
+      log.add(
+        message.ok ? 'tool' : 'error',
+        message.ok ? `✓ ${message.name}` : `✗ ${message.name}: ${message.error ?? 'failed'}`,
+      );
+      break;
     case 'error':
       log.add('error', message.message);
       break;

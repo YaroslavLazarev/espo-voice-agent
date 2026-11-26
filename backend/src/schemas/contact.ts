@@ -29,15 +29,18 @@ export const EMPTY_CONTACT_VALUES: ContactValues = {
  */
 export const contactFieldsInputSchema = z
   .object({
-    salutation: z.union([z.literal(''), z.enum(SALUTATIONS)]),
-    firstName: z.string().trim().max(100),
-    lastName: z.string().trim().min(1, 'lastName cannot be empty').max(100),
-    emailAddress: z.union([z.literal(''), z.email('emailAddress must be a valid email').max(255)]),
+    salutation: z.union([z.literal(''), z.enum(SALUTATIONS)]).describe('Mr., Ms., Mrs., Dr., or empty to clear'),
+    firstName: z.string().trim().max(100).describe('first name'),
+    lastName: z.string().trim().min(1, 'lastName cannot be empty').max(100).describe('last name (required)'),
+    emailAddress: z
+      .union([z.literal(''), z.email('emailAddress must be a valid email').max(255)])
+      .describe('primary email address, lowercase, e.g. john.smith@example.com'),
     phoneNumber: z
       .string()
       .trim()
       .max(36)
-      .regex(/^[+\d\s().-]*$/, 'phoneNumber may contain only digits, spaces, + ( ) . -'),
+      .regex(/^[+\d\s().-]*$/, 'phoneNumber may contain only digits, spaces, + ( ) . -')
+      .describe('primary phone number, digits with an optional leading +'),
   })
   .partial()
   .strict()

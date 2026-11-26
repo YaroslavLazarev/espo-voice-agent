@@ -6,7 +6,7 @@ const props = defineProps<{ entries: readonly Readonly<LogEntry>[] }>();
 
 const list = ref<HTMLOListElement | null>(null);
 
-const label: Record<LogEntry['kind'], string> = { user: 'You', agent: 'Agent', system: 'System', error: 'Error' };
+const label: Record<LogEntry['kind'], string> = { user: 'You', agent: 'Agent', system: 'System', tool: 'Tool', error: 'Error' };
 
 // Keep the newest line in view unless the user scrolled up.
 watch(
@@ -77,6 +77,7 @@ li {
 .user .text { color: #1d4ed8; }
 .agent .text { color: #111827; }
 .system .text { color: #6b7280; font-style: italic; }
+.tool .text { color: #047857; font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
 .error .text { color: #b91c1c; }
 .pending .text { opacity: 0.65; }
 .empty { color: #9ca3af; border: none; }

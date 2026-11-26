@@ -1,6 +1,6 @@
 import { readonly, ref } from 'vue';
 
-export type LogKind = 'user' | 'agent' | 'system' | 'error';
+export type LogKind = 'user' | 'agent' | 'system' | 'tool' | 'error';
 
 export interface LogEntry {
   id: number;

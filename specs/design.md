@@ -45,7 +45,7 @@ JSON text frames. Schemas live in `shared/src/protocol.ts` as a zod discriminate
 ## 3. Agent State Machine (backend, per connection)
 
 ```text
-idle ──navigateToContacts/openCreateContactForm──▶ form_open
+idle ──openCreateContactForm──▶ form_open;  navigateToContacts ──▶ idle (contacts list)
 form_open ──fillContactFields──▶ filling
 filling ──requestConfirmation──▶ awaiting_confirmation        (snapshot stored)
 awaiting_confirmation ──fillContactFields──▶ filling          (snapshot cleared)
@@ -55,11 +55,13 @@ saving ──validation error──▶ filling
 any ──cancelForm──▶ idle;  any ──unexpected error──▶ error (agent explains, can retry)
 ```
 
+Implemented by `backend/src/agent/ToolDispatcher.ts`. Tool calls run one at a time (they share one page). `resolveDuplicate(cancel)` clears the snapshot, so a new read-back is needed before saving again.
+
 The state is reported to the frontend (`agent.state`) and returned in every tool result so the model stays in sync.
 
 ## 4. Tools
 
-All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas generate the Gemini function declarations. Every result has the shape `{ ok: true, state, ...data } | { ok: false, state, error }`. Errors are returned to the model, never thrown into the session.
+All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas generate the Gemini function declarations (`z.toJSONSchema` → `parametersJsonSchema`, reduced to the subset Gemini supports: `const` becomes a one-value `enum`; `$schema`, `format` and `pattern` are dropped, since zod still checks them). Every result has the shape `{ ok: true, state, ...data } | { ok: false, state, error }`. Errors are returned to the model, never thrown into the session.
 
 | Tool | Args | Result data | Notes |
 |---|---|---|---|
@@ -68,13 +70,13 @@ All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas 
 | `fillContactFields` | `{ salutation?: 'Mr.'\|'Ms.'\|'Mrs.'\|'Dr.', firstName?, lastName?, emailAddress?: email, phoneNumber? }` (≥1 field) | `{ values }` | fills only the given fields; clears the snapshot |
 | `getScreenState` | — | `{ hash, values, dialog?: 'duplicate' }` | reads the live DOM |
 | `requestConfirmation` | — | `{ values }` | requires `lastName`; stores the snapshot; the model must read these values back |
-| `saveContact` | `{ confirmed: true }` | `{ id, hash, values }` | guard: snapshot exists and the current DOM hash equals the snapshot hash; then click Save and wait for `#Contact/view/{id}`; values are read from the record view |
+| `saveContact` | `{ confirmed: boolean }` (must be `true`) | `{ id, hash, values }` | guard: snapshot exists and the current DOM hash equals the snapshot hash; then click Save and wait for `#Contact/view/{id}`; values are read from the record view |
 | `resolveDuplicate` | `{ action: 'create' \| 'cancel' }` | `{ id?, hash }` | only in `duplicate_dialog`, only after the user decides |
 | `cancelForm` | — | `{ hash }` | |
 
 **Save guard** (`backend/src/agent/saveGuard.ts`, pure and unit-tested): `hash = sha256(JSON of normalized values with sorted keys)`. Normalization trims strings and lowercases email.
 
-**Cancellation:** the `toolCallCancellation` ids are put into a set. `saveContact` checks the set right before clicking Save and aborts if its id is there. Other tools ignore cancellation.
+**Cancellation:** the `toolCallCancellation` ids are put into a set. `saveContact` checks the set right before clicking Save and aborts if its id is there. Other tools ignore cancellation. No tool response is sent for a cancelled call.
 
 ## 5. Browser Controller
 

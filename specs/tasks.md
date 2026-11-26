@@ -33,11 +33,11 @@ Vertical slices. A task is done when its checks pass and the CLAUDE.md verificat
 - **Check:** a spoken conversation in English works end to end
 
 ## T5. Tools & guarded save — R4, R5, R6, R8 (§3, §4, §8)
-- [ ] Tool schemas → Gemini function declarations; dispatcher → `BrowserController`
-- [ ] State machine + `agent.state` / `tool.call` / `tool.result` events
-- [ ] `requestConfirmation`, `saveContact` guard, `resolveDuplicate`
-- [ ] System prompt (§8)
-- [ ] Tests: dispatcher with a mocked Gemini (tool call → result, save rejected without a snapshot)
+- [x] Tool schemas → Gemini function declarations; dispatcher → `BrowserController`
+- [x] State machine + `agent.state` / `tool.call` / `tool.result` events
+- [x] `requestConfirmation`, `saveContact` guard, `resolveDuplicate`
+- [x] System prompt (§8)
+- [x] Tests: dispatcher with a mocked Gemini (tool call → result, save rejected without a snapshot)
 - **Check:** create a contact by voice; trying to save without confirmation is refused
 
 ## T6. Barge-in & cancellation — R7

@@ -1,6 +1,9 @@
 import {
+  LiveSendToolResponseParameters,
   Modality,
   type FunctionCall,
+  type FunctionDeclaration,
+  type FunctionResponse,
   type LiveConnectConfig,
   type LiveConnectParameters,
   type LiveServerMessage,
@@ -28,6 +31,8 @@ export interface GeminiSessionOptions {
   client: LiveClient;
   model: string;
   systemInstruction: string;
+  /** Function declarations offered to the model (design §4). */
+  tools?: FunctionDeclaration[];
   onEvent: (event: GeminiEvent) => void;
   /** Text sent to a fresh session after a reconnect, e.g. the current screen state. */
   getResumeHint?: () => Promise<string | undefined>;
@@ -100,6 +105,11 @@ export class GeminiSession {
     this.session.sendClientContent({ turns: [{ role: 'user', parts: [{ text }] }], turnComplete: true });
   }
 
+  sendToolResponse(functionResponses: FunctionResponse[]): void {
+    if (this.session === null || functionResponses.length === 0) return;
+    this.session.sendToolResponse(Object.assign(new LiveSendToolResponseParameters(), { functionResponses }));
+  }
+
   private async connect(): Promise<void> {
     const generation = ++this.generation;
     const isCurrent = (): boolean => generation === this.generation && !this.stopped;
@@ -123,12 +133,14 @@ export class GeminiSession {
   }
 
   private liveConfig(): LiveConnectConfig {
+    const { tools } = this.options;
     return {
       responseModalities: [Modality.AUDIO],
       systemInstruction: this.options.systemInstruction,
       inputAudioTranscription: {},
       outputAudioTranscription: {},
       contextWindowCompression: { slidingWindow: {} },
+      ...(tools !== undefined && tools.length > 0 ? { tools: [{ functionDeclarations: tools }] } : {}),
     };
   }
 
