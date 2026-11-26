@@ -12,10 +12,10 @@ Vertical slices. A task is done when its checks pass and the CLAUDE.md verificat
 - **Check:** `npm run dev` starts; a bad `.env` gives a readable error
 
 ## T2. Browser controller — R2.2, R4.1, R4.2, R4.4, R6.1 (§5)
-- [ ] `selectors.ts` (verified against the live demo form)
-- [ ] `BrowserController`: login, navigateToContacts, openCreateForm, fillFields, getScreenState, save, readRecordView, cancel, highlight
-- [ ] `saveGuard.ts` + unit tests (§4)
-- [ ] `espocrm.flow.test.ts` (§10)
+- [x] `selectors.ts` (verified against the live demo form)
+- [x] `BrowserController`: login, navigateToContacts, openCreateForm, fillFields, getScreenState, save, readRecordView, cancel, highlight
+- [x] `saveGuard.ts` + unit tests (§4)
+- [x] `espocrm.flow.test.ts` (§10)
 - **Check:** the integration test passes against the demo
 
 ## T3. Live browser view — R2.1 (§6, §9)

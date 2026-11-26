@@ -1,6 +1,6 @@
 ## Project Overview
 
-Voice-driven AI browser agent built with TypeScript that operates an EspoCRM instance (default: the public demo `https://demo.us.espocrm.com/`) in real time.
+Voice-driven AI browser agent built with TypeScript that operates an EspoCRM instance (default: the public demo `https://demo.eu.espocrm.com/`) in real time.
 
 **Core Workflow:** Create a new Contact end-to-end (`Navigate to Contacts -> Open Create Form -> Fill Fields -> Confirm with User -> Save -> Verify Created Record`), supporting live conversational guidance, clarifications, and mid-speech user interruptions (barge-in).
 
@@ -29,7 +29,7 @@ All config comes from `.env` (with a committed `.env.example`) and is validated 
 |---|---|---|
 | `GEMINI_API_KEY` | yes | — |
 | `GEMINI_MODEL` | no | a current native-audio Live model (verify name in docs) |
-| `ESPOCRM_URL` | no | `https://demo.us.espocrm.com/` (must be a valid URL) |
+| `ESPOCRM_URL` | no | `https://demo.eu.espocrm.com/` (must be a valid URL) |
 | `ESPOCRM_USERNAME` | no | — (public demo pre-fills `Administrator`) |
 | `ESPOCRM_PASSWORD` | no | — (public demo has no password) |
 | `PORT` | no | `3000` |
@@ -72,6 +72,8 @@ Never commit `.env`.
     - Prefer stable attributes over brittle CSS classes. Keep all selectors in `browser/selectors.ts` and verify them against the live form.
     - Target the actual `<input>`, not the field container: e.g. `input[data-name="firstName"]`, `input[data-name="lastName"]` (both live inside the composite `name` / personName field, together with `select[data-name="salutationName"]`), `button[data-action="save"]`.
     - Email and phone are multi-value fields (phone also has a type `<select>` and "add" buttons). Fill only the first/primary entry.
+    - Verified selectors live in `backend/src/browser/selectors.ts` (see `specs/design.md` §5). Email/phone inputs have no `data-name`; scope them by the `.field[data-name=...]` container. Salutation (and phone type) are selectize widgets: choose by clicking the widget and the option, never by setting the hidden `<select>`.
+    - Code passed to `page.evaluate` runs in the browser. Never pass functions as arguments; `__name` is polyfilled by the init script because tsx/esbuild `keepNames` injects it.
     - `lastName` is required for Contact.
     - Handle the duplicate-detection modal on save: EspoCRM can show a "possible duplicate" dialog. Report it to the user and wait for their decision; never confirm it automatically.
 - **Vue 3 Conventions**: Use Composition API with <script setup lang="ts"> and extract Web Audio / WebSocket logic into reusable composables.

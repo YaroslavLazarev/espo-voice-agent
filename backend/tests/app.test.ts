@@ -15,6 +15,6 @@ describe('app', () => {
     app = await buildApp(parseConfig({ GEMINI_API_KEY: 'k' }), { logger: false });
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: 'ok', espocrmUrl: 'https://demo.us.espocrm.com/' });
+    expect(res.json()).toEqual({ status: 'ok', espocrmUrl: 'https://demo.eu.espocrm.com/' });
   });
 });

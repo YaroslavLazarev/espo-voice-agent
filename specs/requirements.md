@@ -13,7 +13,7 @@ Voice agent that creates a Contact in EspoCRM while the user watches the browser
 ### R1. Configuration
 As a developer, I want the app configured via `.env` so I can point it at any EspoCRM instance.
 - R1.1 WHEN the backend starts THEN env vars are validated with zod (see CLAUDE.md → Configuration).
-- R1.2 WHEN `ESPOCRM_URL` is not set THEN `https://demo.us.espocrm.com/` is used.
+- R1.2 WHEN `ESPOCRM_URL` is not set THEN `https://demo.eu.espocrm.com/` is used.
 - R1.3 WHEN `ESPOCRM_USERNAME` / `ESPOCRM_PASSWORD` are not set THEN login uses whatever the login form pre-fills (public demo).
 - R1.4 WHEN a required var is missing or invalid THEN the process exits with a readable message listing the bad vars.
 

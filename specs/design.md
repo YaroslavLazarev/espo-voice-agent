@@ -79,12 +79,22 @@ All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas 
 ## 5. Browser Controller
 
 - Chromium (headless by default), viewport 1280×800, one context per connection.
-- **Login:** open `ESPOCRM_URL` → fill `#field-userName` / `#field-password` only if `ESPOCRM_USERNAME` / `ESPOCRM_PASSWORD` are set (the public demo pre-fills the username and has no password) → click `#btn-login` → wait for the app shell. Skip if already logged in.
-- **Navigation:** set `location.hash`, then wait for the target view's root element. Selectors go in `selectors.ts`.
-- **Fill:** `highlight(locator)` (2px outline for ~800 ms through an injected style) → `locator.fill(value)` → `blur()`. Salutation uses `selectOption`.
-- **Read state:** `inputValue()` of each supported field, plus `location.hash`, plus whether a modal dialog is present.
-- **Record view:** read field values from the detail view after save.
-- **Timeouts:** 10 s per action; a timeout becomes `{ ok: false, error }`.
+- **Login:** open `ESPOCRM_URL` → fill `#field-userName` / `#field-password` only if `ESPOCRM_USERNAME` / `ESPOCRM_PASSWORD` are set (the public demo pre-fills `admin` / `1`) → click `#btn-login` → wait for `#navbar` (attached; it is not "visible" itself). Skip if already logged in.
+- **Navigation:** visible clicks so the user can follow along: sidebar `#navbar a[href="#Contact"]` → wait for the list's `a[data-action="create"]` → click it → wait for `input[data-name="lastName"]`. `openCreateContactForm` is a no-op on `#Contact/create`.
+- **Dirty form:** leaving a filled create form makes EspoCRM ask "Are you sure you want to leave the form?". `navigateToContacts` therefore refuses with an error while the form has values; the agent must call `cancelForm` (Cancel button, which leaves without asking) after the user agrees.
+- **Fill:** `highlight(locator)` (outline for ~800 ms through a style injected with `addInitScript`) → `locator.fill(value)` → `blur()`. An empty string clears the field.
+- **Field selectors (verified on the demo):**
+  - `firstName` / `lastName`: `input[data-name="firstName|lastName"]`.
+  - `salutation`: hidden `select[data-name="salutationName"]` wrapped by selectize (options exist only in JS) → click `.field[data-name="name"] .selectize-input`, then `.selectize-dropdown .option[data-value="Mr."]`. Values: `''`, `Mr.`, `Ms.`, `Mrs.`, `Dr.`.
+  - `emailAddress`: `.field[data-name="emailAddress"] input.email-address` (first one; no `data-name` on the input).
+  - `phoneNumber`: `.field[data-name="phoneNumber"] input.phone-number` (first one; type stays at the default `Mobile`).
+- **Save outcomes** (`clickSave` waits for the first of these):
+  - `saved`: hash becomes `#Contact/view/{id}`.
+  - `duplicate`: `.modal.in` containing a `.list-container` ("The record you are creating might already exist"); buttons `button[data-name="save"]` (Create) / `button[data-name="cancel"]`.
+  - `invalid`: `.alert-danger` ("Not valid") + `.popover.in` messages (e.g. "Last Name is required"); the hash stays on `#Contact/create`.
+- **Read state:** `inputValue()` of each supported field, plus `location.hash`, plus `dialog: 'duplicate' | null`.
+- **Record view:** `name` is shown combined (`Mr. John Smith`); email and phone are read from `[data-email-address]` / `[data-phone-number]` attributes.
+- **Timeouts:** 10 s per action, 30 s for login; a failure becomes `BrowserActionError`, which the tool layer turns into `{ ok: false, error }`.
 
 ## 6. Screencast
 

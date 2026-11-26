@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
-export const DEFAULT_ESPOCRM_URL = 'https://demo.us.espocrm.com/';
+export const DEFAULT_ESPOCRM_URL = 'https://demo.eu.espocrm.com/';
 // Verified against the Gemini Live docs in T4.
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
