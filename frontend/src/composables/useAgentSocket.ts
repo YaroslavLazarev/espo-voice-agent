@@ -41,6 +41,8 @@ export function useAgentSocket(onMessage: (message: ServerMessage) => void) {
       if (message.type === 'connection.status') {
         browserStatus.value = message.browser;
         geminiStatus.value = message.gemini;
+        // A session that came up fine makes an earlier connect error stale.
+        if (message.browser !== 'error' && message.gemini === 'ready') lastError.value = null;
       } else if (message.type === 'error') {
         lastError.value = message.message;
       }
@@ -77,6 +79,9 @@ export function useAgentSocket(onMessage: (message: ServerMessage) => void) {
     browserStatus: readonly(browserStatus),
     geminiStatus: readonly(geminiStatus),
     lastError: readonly(lastError),
+    clearError: (): void => {
+      lastError.value = null;
+    },
     send,
   };
 }

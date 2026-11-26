@@ -6,7 +6,7 @@ import ConnectionStatus from './components/ConnectionStatus.vue';
 import EventLog from './components/EventLog.vue';
 import VoiceControls from './components/VoiceControls.vue';
 import { useAgentSocket } from './composables/useAgentSocket.ts';
-import { useAudioStream } from './composables/useAudioStream.ts';
+import { describeMicError, useAudioStream } from './composables/useAudioStream.ts';
 import { useEventLog } from './composables/useEventLog.ts';
 
 const viewport = ref<InstanceType<typeof BrowserViewport> | null>(null);
@@ -66,7 +66,7 @@ function onGeminiStatus(status: Status): void {
   if ((status === 'error' || status === 'closed') && audio.active.value) audio.stop();
 }
 
-const { socketStatus, browserStatus, geminiStatus, lastError, send } = useAgentSocket(onServerMessage);
+const { socketStatus, browserStatus, geminiStatus, lastError, clearError, send } = useAgentSocket(onServerMessage);
 
 // The backend drops the Gemini session with the socket; stop the mic so the UI matches.
 watch(socketStatus, (status) => {
@@ -80,7 +80,7 @@ async function start(): Promise<void> {
   try {
     await audio.start();
   } catch (error) {
-    log.add('error', `Microphone unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    log.add('error', describeMicError(error));
     return;
   }
   send({ type: 'session.start' });
@@ -109,8 +109,16 @@ function sendText(text: string): void {
     <p
       v-if="lastError"
       class="error"
+      role="alert"
     >
-      {{ lastError }}
+      <span>{{ lastError }}</span>
+      <button
+        type="button"
+        aria-label="Dismiss"
+        @click="clearError"
+      >
+        ×
+      </button>
     </p>
     <VoiceControls
       :active="audio.active.value"
@@ -148,7 +156,25 @@ h1 {
   margin: 0;
 }
 .error {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
   color: #b91c1c;
+  font-size: 14px;
+}
+.error button {
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
 }
 .layout {
   display: grid;

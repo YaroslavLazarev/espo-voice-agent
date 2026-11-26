@@ -104,7 +104,10 @@ export class ClientConnection {
     } catch (error) {
       if (this.isClosed()) return;
       this.deps.log.error({ err: error }, 'browser setup failed');
-      const message = error instanceof BrowserActionError ? error.message : 'Could not open EspoCRM in the browser';
+      const message =
+        error instanceof BrowserActionError
+          ? error.message
+          : `Could not open EspoCRM at ${this.deps.config.ESPOCRM_URL}: ${firstLine(error)}`;
       this.sendStatus({ browser: 'error' });
       this.send({ type: 'error', message });
     }
@@ -235,4 +238,10 @@ function rawToString(data: RawData): string {
   if (Buffer.isBuffer(data)) return data.toString('utf8');
   if (Array.isArray(data)) return Buffer.concat(data).toString('utf8');
   return Buffer.from(data).toString('utf8');
+}
+
+/** Playwright errors carry a multi-line call log; the first line is the readable part. */
+function firstLine(error: unknown): string {
+  const text = error instanceof Error ? error.message : String(error);
+  return text.split('\n', 1)[0]?.trim() ?? text;
 }

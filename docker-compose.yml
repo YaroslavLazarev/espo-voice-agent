@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    # GEMINI_API_KEY and the optional settings come from .env (see .env.example); it is not baked into the image.
+    env_file: .env
+    environment:
+      BROWSER_HEADLESS: "true"
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    # Recommended for Chromium in Docker: a real init process and the host IPC namespace (shared memory).
+    init: true
+    ipc: host
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -47,7 +47,7 @@ Vertical slices. A task is done when its checks pass and the CLAUDE.md verificat
 - **Check:** interrupt mid read-back, change the email, get a fresh read-back, then save
 
 ## T7. Polish & docs
-- [ ] EventLog styling, highlight timing, error messages
-- [ ] `Dockerfile` (Playwright base) + `docker-compose.yml`
-- [ ] README: setup, `.env`, run, demo script, known limitations
+- [x] EventLog styling, highlight timing, error messages
+- [x] `Dockerfile` (Playwright base) + `docker-compose.yml`
+- [x] README: setup, `.env`, run, demo script, known limitations
 - **Check:** fresh clone → README steps → working demo

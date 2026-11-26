@@ -44,4 +44,7 @@ export const selectors = {
 } as const;
 
 export const HIGHLIGHT_CLASS = 'espo-agent-highlight';
-export const HIGHLIGHT_MS = 800;
+/** How long the outline stays on. */
+export const HIGHLIGHT_MS = 1200;
+/** Pause between showing the outline and acting, so the screencast shows it before the value changes. */
+export const HIGHLIGHT_LEAD_MS = 250;

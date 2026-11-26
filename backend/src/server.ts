@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { ConfigError, loadConfig, type Config } from './config.ts';
 import { buildApp } from './app.ts';
 
@@ -14,7 +16,9 @@ function readConfig(): Config {
 }
 
 const config = readConfig();
-const app = await buildApp(config);
+// Serve the production frontend build when it exists (Docker); `npm run dev` uses Vite instead.
+const frontendDist = fileURLToPath(new URL('../../frontend/dist', import.meta.url));
+const app = await buildApp(config, existsSync(frontendDist) ? { staticDir: frontendDist } : {});
 
 const shutdown = (): void => {
   void app.close().then(() => process.exit(0));

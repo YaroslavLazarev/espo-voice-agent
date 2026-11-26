@@ -84,7 +84,7 @@ All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas 
 - **Login:** open `ESPOCRM_URL` → fill `#field-userName` / `#field-password` only if `ESPOCRM_USERNAME` / `ESPOCRM_PASSWORD` are set (the public demo pre-fills `admin` / `1`) → click `#btn-login` → wait for `#navbar` (attached; it is not "visible" itself). Skip if already logged in.
 - **Navigation:** visible clicks so the user can follow along: sidebar `#navbar a[href="#Contact"]` → wait for the list's `a[data-action="create"]` → click it → wait for `input[data-name="lastName"]`. `openCreateContactForm` is a no-op on `#Contact/create`.
 - **Dirty form:** leaving a filled create form makes EspoCRM ask "Are you sure you want to leave the form?". `navigateToContacts` therefore refuses with an error while the form has values; the agent must call `cancelForm` (Cancel button, which leaves without asking) after the user agrees.
-- **Fill:** `highlight(locator)` (outline for ~800 ms through a style injected with `addInitScript`) → `locator.fill(value)` → `blur()`. An empty string clears the field.
+- **Fill:** `highlight(locator)` (outline for ~1.2 s through a style injected with `addInitScript`, with a 250 ms pause before acting so the screencast shows it) → `locator.fill(value)` → `blur()`. An empty string clears the field.
 - **Field selectors (verified on the demo):**
   - `firstName` / `lastName`: `input[data-name="firstName|lastName"]`.
   - `salutation`: hidden `select[data-name="salutationName"]` wrapped by selectize (options exist only in JS) → click `.field[data-name="name"] .selectize-input`, then `.selectize-dropdown .option[data-value="Mr."]`. Values: `''`, `Mr.`, `Ms.`, `Mrs.`, `Dr.`.
@@ -141,3 +141,8 @@ If a tool returns ok:false, explain the problem briefly and suggest the next ste
 | `saveGuard.test.ts` | no snapshot, changed values, normalization, happy path |
 | `espocrm.flow.test.ts` | real browser against `ESPOCRM_URL`, no Gemini: login → navigate → fill → `requestConfirmation` → change one field (simulated interruption) → save rejected → `requestConfirmation` → save → assert `#Contact/view/{id}` and values. Unique `lastName` with a timestamp suffix |
 | `geminiSession.test.ts` | mocked Live client: toolCall → dispatch → response; `interrupted` → event; cancellation aborts save |
+
+## 11. Packaging
+
+- Dev: Vite serves the frontend on 5173 and proxies `/ws` and `/health` to the backend.
+- Docker: `mcr.microsoft.com/playwright` base (tag matches the `playwright` npm version); the image builds the frontend and the backend serves `frontend/dist` at `/` through `@fastify/static` (only when that folder exists), so a single port serves both. Always headless; `.env` comes in through `env_file`, never baked into the image.

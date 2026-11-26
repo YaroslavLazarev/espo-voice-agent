@@ -5,7 +5,7 @@ import {
   type ContactFieldsInput,
   type ContactValues,
 } from '../schemas/contact.ts';
-import { HIGHLIGHT_CLASS, HIGHLIGHT_MS, selectors } from './selectors.ts';
+import { HIGHLIGHT_CLASS, HIGHLIGHT_LEAD_MS, HIGHLIGHT_MS, selectors } from './selectors.ts';
 
 const ACTION_TIMEOUT_MS = 10_000;
 const LOGIN_TIMEOUT_MS = 30_000;
@@ -73,7 +73,7 @@ const INIT_SCRIPT = `
   (function () {
     function inject() {
       var style = document.createElement('style');
-      style.textContent = '.${HIGHLIGHT_CLASS}{outline:3px solid #f59e0b !important;outline-offset:2px !important;}';
+      style.textContent = '.${HIGHLIGHT_CLASS}{outline:3px solid #f59e0b !important;outline-offset:2px !important;box-shadow:0 0 0 6px rgba(245,158,11,.25) !important;transition:outline-color .2s;}';
       document.head.appendChild(style);
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inject);
@@ -346,9 +346,9 @@ export class BrowserController {
     await locator.click();
   }
 
-  /** Brief outline so the user sees what the agent is touching. Never blocks the action. */
+  /** Brief outline so the user sees what the agent is touching. Never fails the action. */
   private async highlight(locator: Locator): Promise<void> {
-    await locator
+    const shown = await locator
       .evaluate(
         (el, { cls, ms }) => {
           el.classList.add(cls);
@@ -358,6 +358,8 @@ export class BrowserController {
         },
         { cls: HIGHLIGHT_CLASS, ms: HIGHLIGHT_MS },
       )
-      .catch(() => undefined);
+      .then(() => true)
+      .catch(() => false);
+    if (shown) await this.page.waitForTimeout(HIGHLIGHT_LEAD_MS);
   }
 }

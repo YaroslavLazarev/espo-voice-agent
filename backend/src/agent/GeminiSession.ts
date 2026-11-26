@@ -74,7 +74,7 @@ export class GeminiSession {
       if (this.isStopped()) return;
       this.stopped = true;
       this.emit({ type: 'status', status: 'error' });
-      this.emit({ type: 'error', message: `Could not connect to Gemini: ${errorMessage(error)}` });
+      this.emit({ type: 'error', message: describeConnectError(error, this.options.model) });
     }
   }
 
@@ -245,4 +245,19 @@ export class GeminiSession {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Turns an SDK connect failure into a message that says which setting to fix. */
+export function describeConnectError(error: unknown, model: string): string {
+  const raw = errorMessage(error);
+  const hint = /api[ _-]?key|unauthori[sz]ed|permission|\b40[13]\b/i.test(raw)
+    ? 'Gemini rejected the API key; check GEMINI_API_KEY'
+    : /not found|not supported|\b404\b|model/i.test(raw)
+      ? `Gemini model "${model}" is not available for Live; check GEMINI_MODEL`
+      : /quota|rate|\b429\b|exhausted/i.test(raw)
+        ? 'Gemini quota or rate limit reached; try again later'
+        : /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network|fetch failed/i.test(raw)
+          ? 'Cannot reach Gemini; check the network connection'
+          : 'Could not connect to Gemini';
+  return `${hint} (${raw})`;
 }

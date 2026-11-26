@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
 import { GoogleGenAI } from '@google/genai';
 import type { Browser } from 'playwright';
@@ -11,6 +12,8 @@ export interface AppOptions {
   logger?: boolean;
   /** Gemini Live client; defaults to the real SDK. Tests inject a fake. */
   liveClient?: LiveClient;
+  /** Built frontend (`frontend/dist`) to serve at `/`; in dev, Vite serves it instead. */
+  staticDir?: string;
 }
 
 export async function buildApp(config: Config, options: AppOptions = {}): Promise<FastifyInstance> {
@@ -34,6 +37,8 @@ export async function buildApp(config: Config, options: AppOptions = {}): Promis
     browser = null;
     if (current !== null) await (await current.catch(() => null))?.close();
   });
+
+  if (options.staticDir !== undefined) await app.register(fastifyStatic, { root: options.staticDir });
 
   app.get('/health', () => ({ status: 'ok', espocrmUrl: config.ESPOCRM_URL }));
 

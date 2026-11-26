@@ -80,3 +80,17 @@ export function useAudioStream(onChunk: (base64Pcm16: string) => void) {
 
   return { active: readonly(active), level: readonly(level), start, stop, play, flush };
 }
+
+/** Readable reason for a failed `start()` (getUserMedia / AudioContext errors). */
+export function describeMicError(error: unknown): string {
+  // getUserMedia (navigator.mediaDevices) only exists in secure contexts.
+  if (!window.isSecureContext) {
+    return 'Microphone needs a secure page: open the app via http://localhost or HTTPS';
+  }
+  if (error instanceof DOMException) {
+    if (error.name === 'NotAllowedError') return 'Microphone access was denied: allow it in the browser and press Start again';
+    if (error.name === 'NotFoundError') return 'No microphone found';
+    if (error.name === 'NotReadableError') return 'The microphone is busy in another application';
+  }
+  return `Microphone unavailable: ${error instanceof Error ? error.message : String(error)}`;
+}
