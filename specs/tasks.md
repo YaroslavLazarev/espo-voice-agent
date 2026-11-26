@@ -26,10 +26,10 @@ Vertical slices. A task is done when its checks pass and the CLAUDE.md verificat
 - **Check:** opening the frontend shows the live EspoCRM page
 
 ## T4. Voice loop without tools — R3, R9 (§7, §9)
-- [ ] `GeminiSession`: connect with config, typed events, reconnect policy
-- [ ] Capture and playback worklets, `useAudioStream`, `VoiceControls`
-- [ ] Transcripts → `EventLog`
-- [ ] `geminiSession.test.ts` (mocked client: events, reconnect)
+- [x] `GeminiSession`: connect with config, typed events, reconnect policy
+- [x] Capture and playback worklets, `useAudioStream`, `VoiceControls`
+- [x] Transcripts → `EventLog`
+- [x] `geminiSession.test.ts` (mocked client: events, reconnect)
 - **Check:** a spoken conversation in English works end to end
 
 ## T5. Tools & guarded save — R4, R5, R6, R8 (§3, §4, §8)

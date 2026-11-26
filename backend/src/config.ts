@@ -3,8 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 export const DEFAULT_ESPOCRM_URL = 'https://demo.eu.espocrm.com/';
-// Verified against the Gemini Live docs in T4.
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
+// Default native-audio Live model per the Gemini Live docs (checked 2026-11).
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-live';
 
 const requiredString = (name: string) =>
   z.string({ error: `${name} is required` }).trim().min(1, `${name} is required`);

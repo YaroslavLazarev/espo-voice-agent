@@ -2,6 +2,8 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { Browser } from 'playwright';
 import type { RawData } from 'ws';
 import { parseClientMessage, type ServerMessage, type Status } from '@espo/shared';
+import { GeminiSession, type GeminiEvent, type LiveClient } from './agent/GeminiSession.ts';
+import { SYSTEM_PROMPT } from './agent/systemPrompt.ts';
 import { BrowserActionError, BrowserController } from './browser/BrowserController.ts';
 import { ScreencastStreamer } from './browser/ScreencastStreamer.ts';
 import type { Config } from './config.ts';
@@ -23,21 +25,35 @@ export interface ClientSocket {
 export interface ClientConnectionDeps {
   socket: ClientSocket;
   getBrowser: () => Promise<Browser>;
+  liveClient: LiveClient;
   config: Config;
   log: FastifyBaseLogger;
 }
 
 /**
- * One per frontend WebSocket: owns a browser context + screencast (and, from T4, a Gemini session).
+ * One per frontend WebSocket: owns a browser context + screencast and a Gemini Live session.
  * Maps internal events to protocol messages; the browser layer knows nothing about the socket.
  */
 export class ClientConnection {
   private controller: BrowserController | null = null;
   private streamer: ScreencastStreamer | null = null;
+  private readonly gemini: GeminiSession;
   private closed = false;
   private status: { browser: Status; gemini: Status } = { browser: 'connecting', gemini: 'closed' };
 
   constructor(private readonly deps: ClientConnectionDeps) {
+    this.gemini = new GeminiSession({
+      client: deps.liveClient,
+      model: deps.config.GEMINI_MODEL,
+      systemInstruction: SYSTEM_PROMPT,
+      onEvent: (event) => {
+        this.onGeminiEvent(event);
+      },
+      getResumeHint: async () => {
+        const state = await this.controller?.getScreenState();
+        return state === undefined ? undefined : `Current screen state: ${JSON.stringify(state)}`;
+      },
+    });
     deps.socket.on('message', (data, isBinary) => {
       this.onMessage(data, isBinary);
     });
@@ -84,6 +100,7 @@ export class ClientConnection {
 
   async close(): Promise<void> {
     this.closed = true;
+    this.gemini.stop();
     const { streamer, controller } = this;
     this.streamer = null;
     this.controller = null;
@@ -106,8 +123,54 @@ export class ClientConnection {
       this.send({ type: 'error', message: `invalid message: ${parsed.error}` });
       return;
     }
-    // Voice session messages are handled from T4 (GeminiSession).
-    this.send({ type: 'error', message: `${parsed.message.type} is not supported yet` });
+    const message = parsed.message;
+    switch (message.type) {
+      case 'session.start':
+        void this.gemini.start();
+        break;
+      case 'session.stop':
+        this.gemini.stop();
+        break;
+      case 'audio.input':
+        this.gemini.sendAudio(message.data);
+        break;
+      case 'text.input':
+        if (!this.gemini.isActive) {
+          this.send({ type: 'error', message: 'Start the voice session first' });
+          break;
+        }
+        this.gemini.sendText(message.text);
+        break;
+    }
+  }
+
+  private onGeminiEvent(event: GeminiEvent): void {
+    switch (event.type) {
+      case 'status':
+        this.sendStatus({ gemini: event.status });
+        break;
+      case 'reconnected':
+        // The frontend logs "reconnected" from the reconnecting → ready status change.
+        this.deps.log.info('gemini session reconnected');
+        break;
+      case 'audio':
+        this.send({ type: 'audio.output', data: event.data });
+        break;
+      case 'interrupted':
+        this.send({ type: 'audio.interrupted' });
+        break;
+      case 'transcript':
+        this.send({ type: 'transcript', role: event.role, text: event.text, final: event.final });
+        break;
+      case 'toolCall':
+      case 'toolCancelled':
+        // No tools are declared until T5, so the model does not call any.
+        break;
+      case 'error':
+        this.deps.log.warn({ message: event.message }, 'gemini error');
+        this.send({ type: 'error', message: event.message });
+        break;
+    }
   }
 
   private sendStatus(patch: Partial<{ browser: Status; gemini: Status }>): void {

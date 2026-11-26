@@ -119,7 +119,7 @@ Full contracts: `specs/design.md` §4.
     - On the Gemini `interrupted` event: immediately flush frontend audio playback and process the user's correction.
     - On `toolCallCancellation`: idempotent tools (`fillContactFields`, navigation, `getScreenState`) may finish; a pending `saveContact` MUST be aborted if it has not yet clicked Save.
 - **Single Source of Truth**: The `getScreenState` tool reads live DOM input values and the current URL hash (`#Contact/create`, `#Contact/view/{id}`) so the agent can accurately answer questions like "What have you filled in so far?" after an interruption.
-- **Language**: The agent always speaks English (system prompt + Live `speechConfig.languageCode: "en-US"`), regardless of the user's language.
+- **Language**: The agent always speaks English, regardless of the user's language. This is enforced by the system prompt only: native-audio Live models do not support an explicit `speechConfig.languageCode`, so the code does not set it.
 
 ## Mandatory Verification Loop
 

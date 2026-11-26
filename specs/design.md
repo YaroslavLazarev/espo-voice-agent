@@ -102,8 +102,12 @@ CDP session on the page → `Page.startScreencast({ format: 'jpeg', quality: 60,
 
 ## 7. Gemini Live Session
 
-- Model from `GEMINI_MODEL`. Config: `responseModalities: [AUDIO]`, `speechConfig.languageCode: 'en-US'`, `inputAudioTranscription` and `outputAudioTranscription` on, `contextWindowCompression: { slidingWindow: {} }` (if the model supports it), tools from §4, system instruction from §8.
-- **Reconnect:** on an unexpected close, retry up to 3 times (1 s, 2 s, 4 s), then status `error`. A new session starts with fresh context plus a short text hint with the current `getScreenState`.
+- Model from `GEMINI_MODEL` (default `gemini-3.8-live`, the current default native-audio Live model per the docs). Config: `responseModalities: [AUDIO]`, `inputAudioTranscription` and `outputAudioTranscription` on, `contextWindowCompression: { slidingWindow: {} }`, tools from §4, system instruction from §8. No `speechConfig.languageCode`: native-audio models pick the language themselves and do not support setting it, so English comes from the system prompt.
+- Audio in: `sendRealtimeInput({ audio: { data, mimeType: 'audio/pcm;rate=16000' } })`. Audio out: 24 kHz PCM16 from `modelTurn` inline data.
+- The SDK client is created with `httpOptions: { apiVersion: 'v1beta' }`: SDK 3.x defaults to `v1`, where the Live endpoint returns 404.
+- `GeminiSession` takes the SDK's `live` client as a dependency (`connect()` only), so tests inject a fake.
+- **Transcripts:** the backend accumulates transcription chunks per role and sends the whole text so far with `final: false`; it sends `final: true` when the turn ends (user: on `finished` or when the agent starts replying; agent: on `turnComplete` or `interrupted`). The frontend replaces the last non-final line of that role.
+- **Reconnect:** on an unexpected close, retry up to 3 times (1 s, 2 s, 4 s), then status `error`. A new session starts with fresh context plus a short text hint with the current `getScreenState`. A failed first connect is reported as `error` without retries.
 
 ## 8. System Prompt (skeleton)
 
