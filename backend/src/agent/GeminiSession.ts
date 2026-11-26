@@ -105,6 +105,11 @@ export class GeminiSession {
     this.session.sendClientContent({ turns: [{ role: 'user', parts: [{ text }] }], turnComplete: true });
   }
 
+  /** Adds context without asking the model to reply (no turnComplete). */
+  sendContext(text: string): void {
+    this.session?.sendClientContent({ turns: [{ role: 'user', parts: [{ text }] }], turnComplete: false });
+  }
+
   sendToolResponse(functionResponses: FunctionResponse[]): void {
     if (this.session === null || functionResponses.length === 0) return;
     this.session.sendToolResponse(Object.assign(new LiveSendToolResponseParameters(), { functionResponses }));

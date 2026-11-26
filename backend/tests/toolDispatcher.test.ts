@@ -304,3 +304,87 @@ describe('Gemini tool call → dispatcher → tool response', () => {
     expect(liveSession.sendToolResponse).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Barge-in & cancellation (R7)', () => {
+  function queued() {
+    const { browser, dispatcher, events, call } = setup();
+    const run = (id: string, name: string, args: Record<string, unknown> = {}) =>
+      dispatcher.runCalls([{ id, name, args }]);
+    return { browser, dispatcher, events, call, run };
+  }
+
+  it('a cancellation that arrives while the save runs, before the click, aborts it (R7.2)', async () => {
+    const { browser, dispatcher, events, call, run } = queued();
+    await call('openCreateContactForm');
+    await call('fillContactFields', contact);
+    await call('requestConfirmation');
+    // Cancel while saveContact awaits its DOM read, i.e. before clickSave.
+    browser.getScreenState.mockImplementationOnce(() => {
+      dispatcher.cancel(['s1']);
+      return Promise.resolve<ScreenState>({
+        hash: '#Contact/create',
+        view: 'contactCreate',
+        values: { ...EMPTY_CONTACT_VALUES, ...contact },
+        dialog: null,
+      });
+    });
+
+    expect(await run('s1', 'saveContact', { confirmed: true })).toEqual([]);
+    expect(browser.clickSave).not.toHaveBeenCalled();
+    expect(dispatcher.currentState).toBe('awaiting_confirmation');
+    expect(events.at(-1)).toMatchObject({ type: 'toolResult', id: 's1', result: { ok: false, error: expect.stringMatching(/cancelled/) } });
+  });
+
+  it('a cancellation after Save was clicked does not undo it and is reported as a late result', async () => {
+    const { browser, dispatcher, events, call, run } = queued();
+    await call('openCreateContactForm');
+    await call('fillContactFields', contact);
+    await call('requestConfirmation');
+    browser.clickSave.mockImplementationOnce(() => {
+      dispatcher.cancel(['s1']);
+      return Promise.resolve({ kind: 'saved', record: { id: 'abc123', hash: '#Contact/view/abc123', name: 'John Smith', emailAddress: contact.emailAddress, phoneNumber: '' } });
+    });
+
+    expect(await run('s1', 'saveContact', { confirmed: true })).toEqual([]);
+    expect(dispatcher.currentState).toBe('saved');
+    expect(events.at(-1)).toMatchObject({ type: 'cancelledAfterEffect', id: 's1', result: { ok: true, id: 'abc123' } });
+  });
+
+  it('idempotent tools finish and are answered normally after a cancellation', async () => {
+    const { browser, run, dispatcher } = queued();
+    await run('o1', 'openCreateContactForm');
+    const pending = run('f1', 'fillContactFields', { lastName: 'Smith' });
+    dispatcher.cancel(['f1']);
+    expect(await pending).toEqual([]);
+    expect(browser.fillContactFields).toHaveBeenCalledWith({ lastName: 'Smith' });
+  });
+
+  it('ignores cancellations for calls that were already answered', async () => {
+    const { dispatcher, run } = queued();
+    await run('o1', 'openCreateContactForm');
+    dispatcher.cancel(['o1']);
+    const responses = await run('o1', 'openCreateContactForm');
+    expect(responses).toHaveLength(1);
+  });
+
+  it('correction after an interrupted read-back: snapshot cleared, fresh read-back, then save (R7.3)', async () => {
+    const { browser, call, run, dispatcher } = queued();
+    await call('openCreateContactForm');
+    await call('fillContactFields', contact);
+    await call('requestConfirmation');
+    // User barges in mid read-back; Gemini cancels the save it had already queued.
+    const save = run('s1', 'saveContact', { confirmed: true });
+    dispatcher.cancel(['s1']);
+    expect(await save).toEqual([]);
+
+    const fixed = 'jon.smith@example.com';
+    expect(await call('fillContactFields', { emailAddress: fixed })).toMatchObject({ ok: true, state: 'filling' });
+    expect(browser.fillContactFields).toHaveBeenLastCalledWith({ emailAddress: fixed });
+    expect(await call('saveContact', { confirmed: true })).toMatchObject({ ok: false, error: expect.stringMatching(/confirm/i) });
+    expect(browser.clickSave).not.toHaveBeenCalled();
+
+    expect(await call('requestConfirmation')).toMatchObject({ ok: true, values: { ...contact, emailAddress: fixed } });
+    expect(await call('saveContact', { confirmed: true })).toMatchObject({ ok: true, state: 'saved', values: { emailAddress: fixed } });
+    expect(browser.clickSave).toHaveBeenCalledTimes(1);
+  });
+});

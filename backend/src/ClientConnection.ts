@@ -211,6 +211,12 @@ export class ClientConnection {
         );
         break;
       }
+      case 'cancelledAfterEffect':
+        this.gemini.sendContext(
+          `[System note: your ${event.name} call was cancelled, but Save had already been clicked. ` +
+            `It completed: ${JSON.stringify(event.result)}. Do not save again.]`,
+        );
+        break;
     }
   }
 

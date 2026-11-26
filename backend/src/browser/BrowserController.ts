@@ -275,7 +275,7 @@ export class BrowserController {
     const hash = await this.hash();
     const id = /^#Contact\/view\/([^/]+)$/.exec(hash)?.[1];
     if (id === undefined) throw new BrowserActionError('Not on a contact record view');
-    await page.locator(selectors.recordView.name).first().waitFor({ state: 'visible' });
+    await page.locator(selectors.recordView.nameRendered).first().waitFor({ state: 'visible' });
     await this.waitForNetworkIdle();
 
     const read = async (): Promise<RecordView> => {

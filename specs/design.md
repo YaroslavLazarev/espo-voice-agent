@@ -76,7 +76,7 @@ All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas 
 
 **Save guard** (`backend/src/agent/saveGuard.ts`, pure and unit-tested): `hash = sha256(JSON of normalized values with sorted keys)`. Normalization trims strings and lowercases email.
 
-**Cancellation:** the `toolCallCancellation` ids are put into a set. `saveContact` checks the set right before clicking Save and aborts if its id is there. Other tools ignore cancellation. No tool response is sent for a cancelled call.
+**Cancellation:** the `toolCallCancellation` ids of calls that are still pending (queued or running) are put into a set; ids of already answered calls are ignored. `saveContact` checks the set right before clicking Save and aborts if its id is there. Other tools ignore cancellation. No tool response is sent for a cancelled call. If Save had already been clicked and the save succeeded, the model gets a context note (`sendClientContent`, no `turnComplete`) with the result, so it does not save twice.
 
 ## 5. Browser Controller
 
@@ -95,7 +95,7 @@ All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas 
   - `duplicate`: `.modal.in` containing a `.list-container` ("The record you are creating might already exist"); buttons `button[data-name="save"]` (Create) / `button[data-name="cancel"]`.
   - `invalid`: `.alert-danger` ("Not valid") + `.popover.in` messages (e.g. "Last Name is required"); the hash stays on `#Contact/create`.
 - **Read state:** `inputValue()` of each supported field, plus `location.hash`, plus `dialog: 'duplicate' | null`.
-- **Record view:** `name` is shown combined (`Mr. John Smith`); email and phone are read from `[data-email-address]` / `[data-phone-number]` attributes.
+- **Record view:** `name` is shown combined (`Mr. John Smith`); email and phone are read from `[data-email-address]` / `[data-phone-number]` attributes. The create form stays in the DOM for a moment after the hash changes, so reading waits until the `name` field has no `input`/`select` (detail mode).
 - **Timeouts:** 10 s per action, 30 s for login; a failure becomes `BrowserActionError`, which the tool layer turns into `{ ok: false, error }`.
 
 ## 6. Screencast
@@ -123,6 +123,7 @@ Never call saveContact without explicit user confirmation of the latest read-bac
 If any value changes, call requestConfirmation again before saving.
 When unsure what is on screen, call getScreenState; never guess.
 If a duplicate dialog appears, tell the user and ask: create anyway or cancel.
+If interrupted, apply only the correction, then requestConfirmation and read back again.
 If a tool returns ok:false, explain the problem briefly and suggest the next step.
 ```
 

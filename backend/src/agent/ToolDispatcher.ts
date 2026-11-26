@@ -24,7 +24,9 @@ export type ToolResult =
 export type DispatcherEvent =
   | { type: 'state'; state: AgentState }
   | { type: 'toolCall'; id: string; name: string; args: unknown }
-  | { type: 'toolResult'; id: string; name: string; result: ToolResult };
+  | { type: 'toolResult'; id: string; name: string; result: ToolResult }
+  /** A cancelled call whose side effect already happened (Save was clicked); the model must be told. */
+  | { type: 'cancelledAfterEffect'; id: string; name: string; result: ToolResult };
 
 export interface ToolDispatcherOptions {
   /** `null` while the browser is still starting. */
@@ -53,6 +55,8 @@ export class ToolDispatcher {
   private state: AgentState = 'idle';
   private readonly guard = new SaveGuard();
   private readonly cancelled = new Set<string>();
+  /** Ids received but not answered yet; cancellations for other ids are ignored. */
+  private readonly pending = new Set<string>();
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly options: ToolDispatcherOptions) {}
@@ -63,18 +67,24 @@ export class ToolDispatcher {
 
   /** Marks calls as cancelled (`toolCallCancellation`). A pending save checks this right before clicking. */
   cancel(ids: readonly string[]): void {
-    for (const id of ids) this.cancelled.add(id);
+    for (const id of ids) if (this.pending.has(id)) this.cancelled.add(id);
   }
 
   /** Runs the calls in order and returns the responses for the non-cancelled ones. */
   runCalls(calls: readonly FunctionCall[]): Promise<FunctionResponse[]> {
+    // Registered synchronously, so a cancellation that arrives while the calls wait in the queue counts.
+    for (const call of calls) this.pending.add(call.id ?? '');
     const run = this.queue.then(async () => {
       const responses: FunctionResponse[] = [];
       for (const call of calls) {
         const id = call.id ?? '';
         const name = call.name ?? '';
-        const result = await this.dispatch(id, name, call.args ?? {});
-        if (this.cancelled.delete(id)) continue;
+        const result = await this.dispatch(id, name, call.args ?? {}).finally(() => this.pending.delete(id));
+        if (this.cancelled.delete(id)) {
+          // Gemini ignores responses to cancelled calls; a save that already went through must still be reported.
+          if (name === 'saveContact' && result.ok) this.emit({ type: 'cancelledAfterEffect', id, name, result });
+          continue;
+        }
         responses.push(Object.assign(new FunctionResponse(), { id, name, response: result }));
       }
       return responses;

@@ -41,9 +41,9 @@ Vertical slices. A task is done when its checks pass and the CLAUDE.md verificat
 - **Check:** create a contact by voice; trying to save without confirmation is refused
 
 ## T6. Barge-in & cancellation — R7
-- [ ] `interrupted` → `audio.interrupted` → playback `flush()`
-- [ ] `toolCallCancellation` → abort a pending save (§4)
-- [ ] Tests: cancellation before the click aborts the save; snapshot cleared after a correction
+- [x] `interrupted` → `audio.interrupted` → playback `flush()`
+- [x] `toolCallCancellation` → abort a pending save (§4)
+- [x] Tests: cancellation before the click aborts the save; snapshot cleared after a correction
 - **Check:** interrupt mid read-back, change the email, get a fresh read-back, then save
 
 ## T7. Polish & docs

@@ -36,6 +36,8 @@ export const selectors = {
   },
   recordView: {
     name: '#main .record .field[data-name="name"]',
+    /** The create form lingers briefly after the hash changes; the detail view has no inputs in the name field. */
+    nameRendered: '#main .record .field[data-name="name"]:not(:has(input, select))',
     emailAddress: '#main .record .field[data-name="emailAddress"] [data-email-address]',
     phoneNumber: '#main .record .field[data-name="phoneNumber"] [data-phone-number]',
   },
