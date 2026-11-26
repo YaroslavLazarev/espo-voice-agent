@@ -1,0 +1,22 @@
+{
+  "name": "@espo/backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.4",
+    "tsx": "^4.23.15",
+    "vitest": "^5.1.2"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^11.3.7",
+    "fastify": "^5.12.8",
+    "zod": "^4.6.7"
+  }
+}
