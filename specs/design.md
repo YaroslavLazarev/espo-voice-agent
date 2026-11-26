@@ -124,7 +124,7 @@ If a tool returns ok:false, explain the problem briefly and suggest the next ste
 
 - `useAgentSocket`: connect/reconnect with backoff, zod-parse incoming messages, typed `send()`, reactive `status`.
 - `useAudioStream`: mic capture worklet (downsample to 16 kHz → PCM16 → base64 chunks); playback worklet with a 24 kHz queue and a `flush()` method.
-- Components: `BrowserViewport` (draws frames on a `<canvas>`), `VoiceControls` (Start/Stop, mic level, status), `EventLog` (transcripts, tool calls/results, state changes).
+- Components: `BrowserViewport` (draws frames on a `<canvas>`, decodes only the latest frame), `ConnectionStatus` (server / browser / Gemini badges), `VoiceControls` (Start/Stop, mic level, status), `EventLog` (transcripts, tool calls/results, state changes).
 
 ## 10. Testing
 

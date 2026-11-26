@@ -19,10 +19,10 @@ Vertical slices. A task is done when its checks pass and the CLAUDE.md verificat
 - **Check:** the integration test passes against the demo
 
 ## T3. Live browser view — R2.1 (§6, §9)
-- [ ] `ScreencastStreamer` with ack and backpressure drop
-- [ ] `shared/src/protocol.ts` (full WS protocol, §2) + schema tests
-- [ ] `ClientConnection`: on connect → login → stream frames
-- [ ] Frontend: `useAgentSocket`, `BrowserViewport`, connection status
+- [x] `ScreencastStreamer` with ack and backpressure drop
+- [x] `shared/src/protocol.ts` (full WS protocol, §2) + schema tests
+- [x] `ClientConnection`: on connect → login → stream frames
+- [x] Frontend: `useAgentSocket`, `BrowserViewport`, connection status
 - **Check:** opening the frontend shows the live EspoCRM page
 
 ## T4. Voice loop without tools — R3, R9 (§7, §9)
