@@ -63,6 +63,9 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
 ]);
 export type ServerMessage = z.infer<typeof serverMessageSchema>;
 
+/** The record link in a `tool.result` (saveContact / resolveDuplicate / openContact). http(s) only, so it is safe as an href. */
+export const recordLinkSchema = z.object({ url: z.url({ protocol: /^https?$/ }) });
+
 export type ParseResult<T> = { ok: true; message: T } | { ok: false; error: string };
 
 function parseJson<T>(schema: z.ZodType<T>, raw: string): ParseResult<T> {

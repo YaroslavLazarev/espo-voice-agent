@@ -68,18 +68,20 @@ All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas 
 |---|---|---|---|
 | `navigateToContacts` | — | `{ hash }` | |
 | `openCreateContactForm` | — | `{ hash }` | no-op if already on `#Contact/create` |
-| `fillContactFields` | `{ salutation?: 'Mr.'\|'Ms.'\|'Mrs.'\|'Dr.', firstName?, lastName?, emailAddress?: email, phoneNumber? }` (≥1 field) | `{ values }` | fills only the given fields; clears the snapshot |
+| `fillContactFields` | `{ salutation?: 'Mr.'\|'Ms.'\|'Mrs.'\|'Dr.', firstName?, lastName?, emailAddress?: email, phoneNumber? }` (≥1 field) | `{ values, changed }` | fills only the given fields; clears the snapshot; `changed` = `{ field: { from, to } }` for the fields whose value actually changed, so the agent can say exactly what it changed |
 | `getScreenState` | — | `{ hash, values, dialog?: 'duplicate' }` | reads the live DOM |
 | `requestConfirmation` | — | `{ values }` | requires `lastName`; stores the snapshot; the model must read these values back |
-| `saveContact` | `{ confirmed: boolean }` (must be `true`) | `{ id, hash, values }` | guard: snapshot exists and the current DOM hash equals the snapshot hash; then click Save and wait for `#Contact/view/{id}`; values are read from the record view |
+| `saveContact` | `{ confirmed: boolean }` (must be `true`) | `{ id, hash, url, values }` | guard: snapshot exists and the current DOM hash equals the snapshot hash; then click Save and wait for `#Contact/view/{id}`; values are read from the record view |
 | `resolveDuplicate` | `{ action: 'create' \| 'cancel' }` | `{ id?, hash }` | only in `duplicate_dialog`, only after the user decides |
 | `cancelForm` | — | `{ hash }` | |
 | `listContacts` | `{ search?: string }` | `{ hash, search, contacts: [{ id, name, account, emailAddress, phoneNumber }], hasMore }` | opens the list (like `navigateToContacts`), applies EspoCRM's text filter (`''`/omitted clears it), returns the first page (≤ 20 rows) read from the DOM |
-| `openContact` | `{ id }` (from `listContacts`) | `{ hash, contact: { id, name, emailAddress, phoneNumber } }` | clicks the row link when it is on screen, otherwise sets `#Contact/view/{id}`; no-op navigation if already there; values from the record view |
+| `openContact` | `{ id }` (from `listContacts`) | `{ hash, url, contact: { id, name, emailAddress, phoneNumber } }` | clicks the row link when it is on screen, otherwise sets `#Contact/view/{id}`; no-op navigation if already there; values from the record view |
 
 **Save guard** (`backend/src/agent/saveGuard.ts`, pure and unit-tested): `hash = sha256(JSON of normalized values with sorted keys)`. Normalization trims strings and lowercases email.
 
-**Cancellation:** the `toolCallCancellation` ids of calls that are still pending (queued or running) are put into a set; ids of already answered calls are ignored. `saveContact` checks the set right before clicking Save and aborts if its id is there. Other tools ignore cancellation. No tool response is sent for a cancelled call. If Save had already been clicked and the save succeeded, the model gets a context note (`sendClientContent`, no `turnComplete`) with the result, so it does not save twice.
+**Cancellation:** the `toolCallCancellation` ids of calls that are still pending (queued or running) are put into a set; ids of already answered calls are ignored. `saveContact` checks the set right before clicking Save and aborts if its id is there. Other tools ignore cancellation. No tool response is sent for a cancelled call. If a cancelled call still completed with an effect (any successful tool except `getScreenState`: a fill, a navigation, or a save whose Save was already clicked), the model gets a context note (`sendClientContent`, no `turnComplete`) with the result, so it knows what is on screen and does not repeat the action (for a save: does not save twice).
+
+**Record URL:** `url` = `ESPOCRM_URL` + the record hash (e.g. `https://demo.eu.espocrm.com/#Contact/view/{id}`), so the user can open the saved record in their own browser.
 
 ## 5. Browser Controller
 
@@ -124,6 +126,10 @@ Goals: create a Contact; list / search contacts and open one (listContacts → o
 Flow: open create form → collect fields (lastName required) → fillContactFields →
 requestConfirmation → read back ALL values (spell emails letter by letter) →
 wait for an explicit "yes" → saveContact({confirmed:true}) → report saved values.
+Guide the user: on a new contact, say which fields you collect (last name required). Before each tool call, say in a few words what you are doing ("Opening the Contacts list").
+After answering a side question, continue from the step you were on.
+After a correction, say exactly what changed (from the `changed` result).
+After saving, say the record is open on screen and its link is in the event log.
 Never call saveContact without explicit user confirmation of the latest read-back.
 If any value changes, call requestConfirmation again before saving.
 When unsure what is on screen, call getScreenState; never guess.
@@ -136,7 +142,7 @@ If a tool returns ok:false, explain the problem briefly and suggest the next ste
 
 - `useAgentSocket`: connect/reconnect with backoff, zod-parse incoming messages, typed `send()`, reactive `status`.
 - `useAudioStream`: mic capture worklet (downsample to 16 kHz → PCM16 → base64 chunks); playback worklet with a 24 kHz queue and a `flush()` method.
-- Components: `BrowserViewport` (draws frames on a `<canvas>`, decodes only the latest frame), `ConnectionStatus` (server / browser / Gemini badges), `VoiceControls` (Start/Stop, mic level, status), `EventLog` (transcripts, tool calls/results, state changes).
+- Components: `BrowserViewport` (draws frames on a `<canvas>`, decodes only the latest frame), `ConnectionStatus` (server / browser / Gemini badges), `VoiceControls` (Start/Stop, mic level, status), `EventLog` (transcripts, tool calls/results, state changes; a clickable link to the record after `saveContact` / `resolveDuplicate(create)` / `openContact`, taken from the result's `url`).
 
 ## 10. Testing
 

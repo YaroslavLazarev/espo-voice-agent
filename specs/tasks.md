@@ -58,3 +58,11 @@ Vertical slices. A task is done when its checks pass and the CLAUDE.md verificat
 - [x] Tools `listContacts`, `openContact` + dispatcher + system prompt
 - [x] Tests: tool schemas, dispatcher (list/open, dirty form), integration flow (search the created contact → open it)
 - **Check:** "show me the contacts", "find Smith", "open John Smith" work by voice
+
+## T9. Review fixes: guidance, accurate explanations, record link — R4.1, R6.3, R7.4–R7.6 (§4, §8, §9)
+- [x] Context note for every cancelled tool call that still had an effect (not only saves)
+- [x] `fillContactFields` returns `changed: { field: { from, to } }`
+- [x] System prompt: announce actions, list needed fields, resume after side questions, say what changed, mention the record link
+- [x] `url` in save / open results; clickable record link in the event log
+- [x] Tests: dispatcher (`changed`, cancelled fill reported, `url`)
+- **Check:** interrupt a fill → agent describes the screen correctly; correct a name → agent says old → new; after save the log has a working link

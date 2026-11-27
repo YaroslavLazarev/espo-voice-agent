@@ -71,9 +71,11 @@ Open <http://localhost:5173>. Vite serves the frontend and proxies `/ws` to the 
    - The agent opens Contacts → Create; each field it fills gets a short orange outline.
    - It reads the values back and spells the email letter by letter.
 4. **Interrupt** while it is reading back: *"Wait, the email is j smith at example dot com."*
-   - Its audio stops at once, it changes only the email, and it reads the values back again.
+   - Its audio stops at once, it changes only the email, says what it changed (old → new), and reads the values back
+     again.
 5. Ask: *"What have you filled in so far?"*. It answers from the live form, not from memory.
-6. Say *"Yes, save it."* The record view opens and the agent reports the saved values.
+6. Say *"Yes, save it."* The record view opens and the agent reports the saved values. The event log shows a link to
+   the saved record, so you can open it in your own browser.
 7. Say *"Show me the contacts"*, then *"Find Smith"* and *"Open John Smith"*. The agent filters the list with
    EspoCRM's search, clicks the row, and reads the contact's details from the record view. If several match, it asks
    which one.

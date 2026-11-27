@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { ServerMessage, Status } from '@espo/shared';
+import { recordLinkSchema, type ServerMessage, type Status } from '@espo/shared';
 import BrowserViewport from './components/BrowserViewport.vue';
 import ConnectionStatus from './components/ConnectionStatus.vue';
 import EventLog from './components/EventLog.vue';
@@ -46,6 +46,7 @@ function onServerMessage(message: ServerMessage): void {
         message.ok ? 'tool' : 'error',
         message.ok ? `✓ ${message.name}` : `✗ ${message.name}: ${message.error ?? 'failed'}`,
       );
+      if (message.ok) logRecordLink(message.name, message.result);
       break;
     case 'error':
       log.add('error', message.message);
@@ -53,6 +54,13 @@ function onServerMessage(message: ServerMessage): void {
     default:
       break;
   }
+}
+
+/** A clickable link to the record after it was saved or opened, so the user can open it in their own browser. */
+function logRecordLink(tool: string, result: unknown): void {
+  const link = recordLinkSchema.safeParse(result);
+  if (!link.success) return;
+  log.add('system', tool === 'openContact' ? 'Opened record:' : 'Saved record:', true, link.data.url);
 }
 
 function onGeminiStatus(status: Status): void {

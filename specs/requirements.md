@@ -31,7 +31,7 @@ As a user, I want to talk to the agent with my microphone and hear it reply.
 
 ### R4. Fill the contact form
 As a user, I want to dictate contact details and see them entered into the form.
-- R4.1 WHEN the user asks to create a contact THEN the agent navigates to Contacts and opens the create form.
+- R4.1 WHEN the user asks to create a contact THEN the agent navigates to Contacts and opens the create form, saying briefly what it does and which fields it needs (last name required).
 - R4.2 WHEN the user provides field values (all at once or one by one) THEN the agent fills only those fields, without clearing others.
 - R4.3 WHEN `lastName` is missing THEN the agent asks for it before requesting confirmation.
 - R4.4 WHEN the user asks "what have you filled in so far?" THEN the agent answers from live DOM state (`getScreenState`), not from memory.
@@ -47,12 +47,16 @@ As a user, I want nothing saved until I explicitly confirm the values.
 ### R6. Verify the created record
 - R6.1 WHEN save succeeds THEN the URL is `#Contact/view/{id}` and the agent reports the saved values read from the record view.
 - R6.2 WHEN save fails (validation error, timeout) THEN the agent tells the user what went wrong and stays on the form.
+- R6.3 WHEN save succeeds THEN the event log shows a link to the record (`ESPOCRM_URL` + `#Contact/view/{id}`) and the agent says the record is open on screen.
 
 ### R7. Barge-in
 As a user, I want to interrupt the agent mid-sentence to correct something.
 - R7.1 WHEN the user starts speaking while the agent talks THEN agent audio stops immediately (playback queue flushed).
 - R7.2 WHEN Gemini cancels a pending tool call THEN idempotent tools may complete; `saveContact` is aborted if Save has not been clicked yet.
 - R7.3 WHEN the user corrects a value after an interruption THEN only that field is updated and the snapshot is invalidated.
+- R7.4 WHEN the user corrects a value THEN the agent says exactly what changed (old → new), from the tool result.
+- R7.5 WHEN Gemini cancels a tool call that already changed the screen (fill, navigation, save) THEN the model is told the result, so it describes the screen accurately and does not repeat the action.
+- R7.6 WHEN the user asks a side question mid-workflow THEN the agent answers and continues from the step it was on.
 
 ### R8. Duplicate detection
 - R8.1 WHEN EspoCRM shows a duplicate dialog on save THEN the agent tells the user and waits for their choice (create anyway or cancel); it never resolves the dialog on its own.

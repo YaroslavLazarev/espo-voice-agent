@@ -216,8 +216,9 @@ export class ClientConnection {
       }
       case 'cancelledAfterEffect':
         this.gemini.sendContext(
-          `[System note: your ${event.name} call was cancelled, but Save had already been clicked. ` +
-            `It completed: ${JSON.stringify(event.result)}. Do not save again.]`,
+          `[System note: your ${event.name} call was cancelled by the interruption, but it had already run. ` +
+            `Result: ${JSON.stringify(event.result)}. The screen reflects it; do not repeat it` +
+            (['saveContact', 'resolveDuplicate'].includes(event.name) ? ' (the contact is saved; do not save again).]' : '.]'),
         );
         break;
     }

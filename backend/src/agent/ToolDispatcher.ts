@@ -2,6 +2,7 @@ import { FunctionResponse, type FunctionCall } from '@google/genai';
 import type { AgentState } from '@espo/shared';
 import { z } from 'zod';
 import { BrowserActionError, type BrowserController, type SaveOutcome } from '../browser/BrowserController.ts';
+import { CONTACT_FIELDS, type ContactField, type ContactValues } from '../schemas/contact.ts';
 import { isToolName, toolSchemas, type ToolName } from '../schemas/tools.ts';
 import { SaveGuard } from './saveGuard.ts';
 
@@ -27,7 +28,7 @@ export type DispatcherEvent =
   | { type: 'state'; state: AgentState }
   | { type: 'toolCall'; id: string; name: string; args: unknown }
   | { type: 'toolResult'; id: string; name: string; result: ToolResult }
-  /** A cancelled call whose side effect already happened (Save was clicked); the model must be told. */
+  /** A cancelled call that still completed with an effect (fill, navigation, save); the model must be told. */
   | { type: 'cancelledAfterEffect'; id: string; name: string; result: ToolResult };
 
 export interface ToolDispatcherOptions {
@@ -83,8 +84,9 @@ export class ToolDispatcher {
         const name = call.name ?? '';
         const result = await this.dispatch(id, name, call.args ?? {}).finally(() => this.pending.delete(id));
         if (this.cancelled.delete(id)) {
-          // Gemini ignores responses to cancelled calls; a save that already went through must still be reported.
-          if (name === 'saveContact' && result.ok) this.emit({ type: 'cancelledAfterEffect', id, name, result });
+          // Gemini ignores responses to cancelled calls, but an effect that already happened must still be
+          // reported, or the model describes a screen that no longer exists (or repeats the action).
+          if (result.ok && name !== 'getScreenState') this.emit({ type: 'cancelledAfterEffect', id, name, result });
           continue;
         }
         responses.push(Object.assign(new FunctionResponse(), { id, name, response: result }));
@@ -134,9 +136,11 @@ export class ToolDispatcher {
       }
       case 'fillContactFields': {
         const fields = toolSchemas.fillContactFields.args.parse(args);
+        const before = (await browser.getScreenState()).values;
         this.guard.clear();
         this.setState('filling');
-        return { values: await browser.fillContactFields(fields) };
+        const values = await browser.fillContactFields(fields);
+        return { values, changed: before === null ? {} : diffValues(before, values) };
       }
       case 'getScreenState':
         return { ...(await browser.getScreenState()) };
@@ -159,10 +163,10 @@ export class ToolDispatcher {
         return { ...result };
       }
       case 'openContact': {
-        const { id, hash, ...contact } = await browser.openContact(toolSchemas.openContact.args.parse(args).id);
+        const { id, hash, url, ...contact } = await browser.openContact(toolSchemas.openContact.args.parse(args).id);
         this.guard.clear();
         this.setState('idle');
-        return { hash, contact: { id, ...contact } };
+        return { hash, url, contact: { id, ...contact } };
       }
     }
   }
@@ -211,7 +215,13 @@ export class ToolDispatcher {
       case 'saved':
         this.guard.clear();
         this.setState('saved');
-        return { id: outcome.record.id, hash: outcome.record.hash, values: outcome.record };
+        return {
+          id: outcome.record.id,
+          hash: outcome.record.hash,
+          url: outcome.record.url,
+          values: outcome.record,
+          instruction: 'Tell the user the saved values, that the record is open on screen and its link is in the event log.',
+        };
       case 'duplicate':
         this.setState('duplicate_dialog');
         return {
@@ -238,4 +248,15 @@ export class ToolDispatcher {
   private emit(event: DispatcherEvent): void {
     this.options.onEvent(event);
   }
+}
+
+export type FieldChanges = Partial<Record<ContactField, { from: string; to: string }>>;
+
+/** The fields whose value differs, as `{ from, to }`, so the agent can say exactly what it changed. */
+export function diffValues(before: ContactValues, after: ContactValues): FieldChanges {
+  const changes: FieldChanges = {};
+  for (const field of CONTACT_FIELDS) {
+    if (before[field] !== after[field]) changes[field] = { from: before[field], to: after[field] };
+  }
+  return changes;
 }

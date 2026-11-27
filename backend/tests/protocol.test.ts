@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseClientMessage, parseServerMessage, serverMessageSchema } from '@espo/shared';
+import { parseClientMessage, parseServerMessage, recordLinkSchema, serverMessageSchema } from '@espo/shared';
 
 describe('client → server messages', () => {
   it.each([
@@ -46,5 +46,13 @@ describe('server → client messages', () => {
     { type: 'tool.result', id: '1', name: 'x' },
   ])('rejects invalid $type', (msg) => {
     expect(serverMessageSchema.safeParse(msg).success).toBe(false);
+  });
+});
+
+describe('record link', () => {
+  it('accepts http(s) urls only', () => {
+    expect(recordLinkSchema.safeParse({ url: 'https://demo.eu.espocrm.com/#Contact/view/abc' }).success).toBe(true);
+    expect(recordLinkSchema.safeParse({ url: 'javascript:alert(1)' }).success).toBe(false);
+    expect(recordLinkSchema.safeParse({ hash: '#Contact' }).success).toBe(false);
   });
 });

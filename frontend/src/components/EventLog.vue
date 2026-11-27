@@ -47,6 +47,13 @@ watch(
           <time>{{ entry.time }}</time>
         </span>
         <span class="text">{{ entry.text }}</span>
+        <a
+          v-if="entry.href"
+          class="link"
+          :href="entry.href"
+          target="_blank"
+          rel="noopener noreferrer"
+        >{{ entry.href }}</a>
       </li>
       <li
         v-if="visible.length === 0"
@@ -133,5 +140,6 @@ li {
 .error .tag, .error .text { color: #b91c1c; }
 .pending .text { opacity: 0.6; }
 .pending .text::after { content: ' …'; }
+.link { font-size: 12px; color: #1d4ed8; overflow-wrap: anywhere; }
 .empty { color: #9ca3af; border: none; font-style: italic; }
 </style>

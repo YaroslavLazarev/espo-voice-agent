@@ -80,6 +80,7 @@ describe('EspoCRM contact flow', { timeout: 90_000 }, () => {
     if (outcome.kind !== 'saved') throw new Error(`expected saved, got ${JSON.stringify(outcome)}`);
 
     expect(outcome.record.hash).toMatch(/^#Contact\/view\/[^/]+$/);
+    expect(outcome.record.url).toBe(new URL(outcome.record.hash, process.env.ESPOCRM_URL ?? DEFAULT_ESPOCRM_URL).href);
     expect(outcome.record).toMatchObject({
       name: `Mr. Voice Agent${runId}`,
       emailAddress: correctedEmail,

@@ -35,6 +35,8 @@ export interface ScreenState {
 export interface RecordView {
   id: string;
   hash: string;
+  /** Absolute link to the record (`ESPOCRM_URL` + hash), for the user to open in their own browser. */
+  url: string;
   /** As displayed by EspoCRM, e.g. "Mr. John Smith". */
   name: string;
   emailAddress: string;
@@ -376,6 +378,7 @@ export class BrowserController {
       return {
         id,
         hash,
+        url: new URL(hash, this.options.espocrmUrl).href,
         name: (await page.locator(selectors.recordView.name).first().innerText()).replace(/\s+/g, ' ').trim(),
         emailAddress: await attr(selectors.recordView.emailAddress, 'data-email-address'),
         phoneNumber: await attr(selectors.recordView.phoneNumber, 'data-phone-number'),

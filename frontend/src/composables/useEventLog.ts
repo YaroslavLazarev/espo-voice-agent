@@ -9,6 +9,8 @@ export interface LogEntry {
   /** Transcripts stream in; a non-final line is replaced until it becomes final. */
   final: boolean;
   time: string;
+  /** Optional link shown after the text, e.g. the saved record. */
+  href?: string;
 }
 
 const MAX_ENTRIES = 300;
@@ -19,8 +21,8 @@ export function useEventLog() {
 
   const now = (): string => new Date().toLocaleTimeString([], { hour12: false });
 
-  function add(kind: LogKind, text: string, final = true): void {
-    entries.value.push({ id: nextId++, kind, text, final, time: now() });
+  function add(kind: LogKind, text: string, final = true, href?: string): void {
+    entries.value.push({ id: nextId++, kind, text, final, time: now(), ...(href !== undefined ? { href } : {}) });
     if (entries.value.length > MAX_ENTRIES) entries.value.splice(0, entries.value.length - MAX_ENTRIES);
   }
 

@@ -30,7 +30,7 @@ function fakeBrowser(saveOutcomes: SaveOutcome['kind'][] = ['saved']) {
     dialog = null;
     hash = '#Contact/view/abc123';
     const name = [values.salutation, values.firstName, values.lastName].filter(Boolean).join(' ');
-    return { kind, record: { id: 'abc123', hash, name, emailAddress: values.emailAddress, phoneNumber: values.phoneNumber } };
+    return { kind, record: { id: 'abc123', hash, url: `https://crm.test/${hash}`, name, emailAddress: values.emailAddress, phoneNumber: values.phoneNumber } };
   };
   const browser = {
     navigateToContacts: vi.fn(() => {
@@ -78,7 +78,7 @@ function fakeBrowser(saveOutcomes: SaveOutcome['kind'][] = ['saved']) {
       if (id !== existing.id) return Promise.reject(new BrowserActionError(`Could not open contact ${id}`));
       hash = `#Contact/view/${id}`;
       const { id: recordId, name, emailAddress, phoneNumber } = existing;
-      return Promise.resolve({ id: recordId, name, emailAddress, phoneNumber, hash });
+      return Promise.resolve({ id: recordId, name, emailAddress, phoneNumber, hash, url: `https://crm.test/${hash}` });
     }),
   } satisfies ContactBrowser;
   return browser;
@@ -228,6 +228,7 @@ describe('ToolDispatcher', () => {
       ok: true,
       state: 'idle',
       hash: `#Contact/view/${existing.id}`,
+      url: `https://crm.test/#Contact/view/${existing.id}`,
       contact: { id: existing.id, name: existing.name, emailAddress: existing.emailAddress, phoneNumber: existing.phoneNumber },
     });
     expect(await call('openContact', { id: 'nope' })).toMatchObject({ ok: false, state: 'idle' });
@@ -314,7 +315,12 @@ describe('Gemini tool call → dispatcher → tool response', () => {
         {
           id: 't2',
           name: 'fillContactFields',
-          response: { ok: true, state: 'filling', values: { ...EMPTY_CONTACT_VALUES, lastName: 'Smith' } },
+          response: {
+            ok: true,
+            state: 'filling',
+            values: { ...EMPTY_CONTACT_VALUES, lastName: 'Smith' },
+            changed: { lastName: { from: '', to: 'Smith' } },
+          },
         },
       ],
     });
@@ -390,7 +396,7 @@ describe('Barge-in & cancellation (R7)', () => {
     await call('requestConfirmation');
     browser.clickSave.mockImplementationOnce(() => {
       dispatcher.cancel(['s1']);
-      return Promise.resolve({ kind: 'saved', record: { id: 'abc123', hash: '#Contact/view/abc123', name: 'John Smith', emailAddress: contact.emailAddress, phoneNumber: '' } });
+      return Promise.resolve({ kind: 'saved', record: { id: 'abc123', hash: '#Contact/view/abc123', url: 'https://crm.test/#Contact/view/abc123', name: 'John Smith', emailAddress: contact.emailAddress, phoneNumber: '' } });
     });
 
     expect(await run('s1', 'saveContact', { confirmed: true })).toEqual([]);
@@ -405,6 +411,28 @@ describe('Barge-in & cancellation (R7)', () => {
     dispatcher.cancel(['f1']);
     expect(await pending).toEqual([]);
     expect(browser.fillContactFields).toHaveBeenCalledWith({ lastName: 'Smith' });
+  });
+
+  it('a cancelled fill that already ran is reported, so the model knows the screen changed (R7.5)', async () => {
+    const { events, run, dispatcher } = queued();
+    await run('o1', 'openCreateContactForm');
+    const pending = run('f1', 'fillContactFields', { lastName: 'Smith' });
+    dispatcher.cancel(['f1']);
+    expect(await pending).toEqual([]);
+    expect(events.at(-1)).toMatchObject({
+      type: 'cancelledAfterEffect',
+      id: 'f1',
+      name: 'fillContactFields',
+      result: { ok: true, values: { lastName: 'Smith' } },
+    });
+  });
+
+  it('a cancelled read-only call is not reported', async () => {
+    const { events, run, dispatcher } = queued();
+    const pending = run('g1', 'getScreenState');
+    dispatcher.cancel(['g1']);
+    expect(await pending).toEqual([]);
+    expect(events.some((e) => e.type === 'cancelledAfterEffect')).toBe(false);
   });
 
   it('ignores cancellations for calls that were already answered', async () => {
@@ -434,5 +462,34 @@ describe('Barge-in & cancellation (R7)', () => {
     expect(await call('requestConfirmation')).toMatchObject({ ok: true, values: { ...contact, emailAddress: fixed } });
     expect(await call('saveContact', { confirmed: true })).toMatchObject({ ok: true, state: 'saved', values: { emailAddress: fixed } });
     expect(browser.clickSave).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Accurate explanations (R6.3, R7.4)', () => {
+  it('fillContactFields reports exactly which fields changed, old → new', async () => {
+    const { call } = setup();
+    await call('openCreateContactForm');
+    expect(await call('fillContactFields', contact)).toMatchObject({
+      changed: { firstName: { from: '', to: 'John' }, lastName: { from: '', to: 'Smith' } },
+    });
+    const result = await call('fillContactFields', { firstName: 'Jon', lastName: 'Smith' });
+    expect(result).toMatchObject({ ok: true, changed: { firstName: { from: 'John', to: 'Jon' } } });
+    expect(result).not.toHaveProperty('changed.lastName');
+  });
+
+  it('save and open results carry the record url', async () => {
+    const { call } = setup();
+    await call('openCreateContactForm');
+    await call('fillContactFields', contact);
+    await call('requestConfirmation');
+    expect(await call('saveContact', { confirmed: true })).toMatchObject({
+      ok: true,
+      url: 'https://crm.test/#Contact/view/abc123',
+    });
+    expect(await call('openContact', { id: existing.id })).toMatchObject({
+      ok: true,
+      url: `https://crm.test/#Contact/view/${existing.id}`,
+      contact: { id: existing.id, name: existing.name },
+    });
   });
 });
