@@ -52,6 +52,7 @@ awaiting_confirmation ──fillContactFields──▶ filling          (snapsho
 awaiting_confirmation ──saveContact(ok)──▶ saving ──▶ saved
 saving ──duplicate dialog──▶ duplicate_dialog ──resolveDuplicate──▶ saved | form_open
 saving ──validation error──▶ filling
+any ──listContacts / openContact──▶ idle (snapshot cleared; refused while the form has values)
 any ──cancelForm──▶ idle;  any ──unexpected error──▶ error (agent explains, can retry)
 ```
 
@@ -73,6 +74,8 @@ All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas 
 | `saveContact` | `{ confirmed: boolean }` (must be `true`) | `{ id, hash, values }` | guard: snapshot exists and the current DOM hash equals the snapshot hash; then click Save and wait for `#Contact/view/{id}`; values are read from the record view |
 | `resolveDuplicate` | `{ action: 'create' \| 'cancel' }` | `{ id?, hash }` | only in `duplicate_dialog`, only after the user decides |
 | `cancelForm` | — | `{ hash }` | |
+| `listContacts` | `{ search?: string }` | `{ hash, search, contacts: [{ id, name, account, emailAddress, phoneNumber }], hasMore }` | opens the list (like `navigateToContacts`), applies EspoCRM's text filter (`''`/omitted clears it), returns the first page (≤ 20 rows) read from the DOM |
+| `openContact` | `{ id }` (from `listContacts`) | `{ hash, contact: { id, name, emailAddress, phoneNumber } }` | clicks the row link when it is on screen, otherwise sets `#Contact/view/{id}`; no-op navigation if already there; values from the record view |
 
 **Save guard** (`backend/src/agent/saveGuard.ts`, pure and unit-tested): `hash = sha256(JSON of normalized values with sorted keys)`. Normalization trims strings and lowercases email.
 
@@ -90,6 +93,8 @@ All args validated with zod in `backend/src/schemas/tools.ts`; the same schemas 
   - `salutation`: hidden `select[data-name="salutationName"]` wrapped by selectize (options exist only in JS) → click `.field[data-name="name"] .selectize-input`, then `.selectize-dropdown .option[data-value="Mr."]`. Values: `''`, `Mr.`, `Ms.`, `Mrs.`, `Dr.`.
   - `emailAddress`: `.field[data-name="emailAddress"] input.email-address` (first one; no `data-name` on the input).
   - `phoneNumber`: `.field[data-name="phoneNumber"] input.phone-number` (first one; type stays at the default `Mobile`).
+- **List** (verified on the demo): rows `#main .list tbody tr.list-row[data-id]`; cells `td[data-name="name|account"]`, email/phone from `[data-email-address]` / `[data-phone-number]`. Search: type into `#main .search-container input[data-name="textFilter"]`, click `button[data-action="search"]`, wait for the `GET api/v1/Contact?…` response, then read rows until two reads agree. EspoCRM remembers the filter, so `listContacts` without `search` clears a leftover one. More pages: `[data-action="showMore"]` → `hasMore`.
+- **Open a contact:** row link `td[data-name="name"] a[data-id="{id}"]`; an unknown id (no record view within the timeout) becomes a `BrowserActionError`. Ids are validated as `[A-Za-z0-9]+` so they are safe inside selectors.
 - **Save outcomes** (`clickSave` waits for the first of these):
   - `saved`: hash becomes `#Contact/view/{id}`.
   - `duplicate`: `.modal.in` containing a `.list-container` ("The record you are creating might already exist"); buttons `button[data-name="save"]` (Create) / `button[data-name="cancel"]`.
@@ -115,7 +120,7 @@ CDP session on the page → `Page.startScreencast({ format: 'jpeg', quality: 60,
 
 ```text
 You are a voice assistant operating EspoCRM in a browser the user can see.
-Goal: create one Contact. Always speak English. Be brief: 1–2 sentences per turn.
+Goals: create a Contact; list / search contacts and open one (listContacts → openContact by id; ask when several match). Always speak English. Be brief: 1–2 sentences per turn.
 Flow: open create form → collect fields (lastName required) → fillContactFields →
 requestConfirmation → read back ALL values (spell emails letter by letter) →
 wait for an explicit "yes" → saveContact({confirmed:true}) → report saved values.
@@ -139,7 +144,7 @@ If a tool returns ok:false, explain the problem briefly and suggest the next ste
 |---|---|
 | `schemas.test.ts` | tool args (valid/invalid), env config, WS protocol |
 | `saveGuard.test.ts` | no snapshot, changed values, normalization, happy path |
-| `espocrm.flow.test.ts` | real browser against `ESPOCRM_URL`, no Gemini: login → navigate → fill → `requestConfirmation` → change one field (simulated interruption) → save rejected → `requestConfirmation` → save → assert `#Contact/view/{id}` and values. Unique `lastName` with a timestamp suffix |
+| `espocrm.flow.test.ts` | real browser against `ESPOCRM_URL`, no Gemini: login → navigate → fill → `requestConfirmation` → change one field (simulated interruption) → save rejected → `requestConfirmation` → save → assert `#Contact/view/{id}` and values. Unique `lastName` with a timestamp suffix. Then `listContacts(search = that lastName)` → one row → `openContact(id)` → same values; `listContacts()` clears the filter |
 | `geminiSession.test.ts` | mocked Live client: toolCall → dispatch → response; `interrupted` → event; cancellation aborts save |
 
 ## 11. Packaging

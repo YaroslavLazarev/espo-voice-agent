@@ -2,9 +2,17 @@ import { LiveServerMessage, type LiveConnectParameters } from '@google/genai';
 import { describe, expect, it, vi } from 'vitest';
 import { GeminiSession, type LiveClient, type LiveSession } from '../src/agent/GeminiSession.ts';
 import { ToolDispatcher, type ContactBrowser, type DispatcherEvent } from '../src/agent/ToolDispatcher.ts';
-import type { SaveOutcome, ScreenState } from '../src/browser/BrowserController.ts';
+import { BrowserActionError, type SaveOutcome, type ScreenState } from '../src/browser/BrowserController.ts';
 import { EMPTY_CONTACT_VALUES, type ContactValues } from '../src/schemas/contact.ts';
 import { toolDeclarations } from '../src/schemas/tools.ts';
+
+const existing = {
+  id: 'def456',
+  name: 'Frederick Devine',
+  account: 'AFP Supply',
+  emailAddress: 'f.devine@afp-supply.com',
+  phoneNumber: '+491771234567',
+};
 
 /** In-memory EspoCRM: a create form whose values change on fill, and a scripted save outcome. */
 function fakeBrowser(saveOutcomes: SaveOutcome['kind'][] = ['saved']) {
@@ -57,6 +65,20 @@ function fakeBrowser(saveOutcomes: SaveOutcome['kind'][] = ['saved']) {
     cancelForm: vi.fn(() => {
       hash = '#Contact';
       return Promise.resolve({ hash });
+    }),
+    listContacts: vi.fn((search = '') => {
+      if (onForm() && Object.values(values).some((v) => v !== '')) {
+        return Promise.reject(new BrowserActionError('The create form has unsaved values'));
+      }
+      hash = '#Contact';
+      const contacts = [existing].filter((c) => search === '' || c.name.includes(search));
+      return Promise.resolve({ hash, search, contacts, hasMore: false });
+    }),
+    openContact: vi.fn((id: string) => {
+      if (id !== existing.id) return Promise.reject(new BrowserActionError(`Could not open contact ${id}`));
+      hash = `#Contact/view/${id}`;
+      const { id: recordId, name, emailAddress, phoneNumber } = existing;
+      return Promise.resolve({ id: recordId, name, emailAddress, phoneNumber, hash });
     }),
   } satisfies ContactBrowser;
   return browser;
@@ -194,6 +216,32 @@ describe('ToolDispatcher', () => {
       state: 'filling',
       error: expect.stringContaining('Last Name is required') as string,
     });
+  });
+
+  it('lists, searches and opens existing contacts (R10)', async () => {
+    const { call, browser } = setup();
+    expect(await call('listContacts')).toMatchObject({ ok: true, state: 'idle', contacts: [existing], hasMore: false });
+    expect(await call('listContacts', { search: 'Nobody' })).toMatchObject({ ok: true, contacts: [] });
+    expect(browser.listContacts).toHaveBeenLastCalledWith('Nobody');
+
+    expect(await call('openContact', { id: existing.id })).toEqual({
+      ok: true,
+      state: 'idle',
+      hash: `#Contact/view/${existing.id}`,
+      contact: { id: existing.id, name: existing.name, emailAddress: existing.emailAddress, phoneNumber: existing.phoneNumber },
+    });
+    expect(await call('openContact', { id: 'nope' })).toMatchObject({ ok: false, state: 'idle' });
+    expect(await call('openContact', { id: '../x' })).toMatchObject({ ok: false, error: expect.stringContaining('Invalid') as string });
+  });
+
+  it('refuses to browse away from a filled form and keeps the snapshot (R10.5)', async () => {
+    const { call } = setup();
+    await call('openCreateContactForm');
+    await call('fillContactFields', contact);
+    await call('requestConfirmation');
+
+    expect(await call('listContacts')).toMatchObject({ ok: false, state: 'awaiting_confirmation' });
+    expect(await call('saveContact', { confirmed: true })).toMatchObject({ ok: true, state: 'saved' });
   });
 
   it('reports a browser that is not ready', async () => {

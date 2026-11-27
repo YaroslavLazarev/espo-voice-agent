@@ -15,6 +15,8 @@ export type ContactBrowser = Pick<
   | 'clickSave'
   | 'resolveDuplicate'
   | 'cancelForm'
+  | 'listContacts'
+  | 'openContact'
 >;
 
 export type ToolResult =
@@ -149,6 +151,18 @@ export class ToolDispatcher {
         this.guard.clear();
         this.setState('idle');
         return result;
+      }
+      case 'listContacts': {
+        const result = await browser.listContacts(toolSchemas.listContacts.args.parse(args).search);
+        this.guard.clear();
+        this.setState('idle');
+        return { ...result };
+      }
+      case 'openContact': {
+        const { id, hash, ...contact } = await browser.openContact(toolSchemas.openContact.args.parse(args).id);
+        this.guard.clear();
+        this.setState('idle');
+        return { hash, contact: { id, ...contact } };
       }
     }
   }

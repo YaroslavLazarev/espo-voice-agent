@@ -48,3 +48,19 @@ export const contactFieldsInputSchema = z
     error: 'Provide at least one field',
   });
 export type ContactFieldsInput = z.infer<typeof contactFieldsInputSchema>;
+
+/** EspoCRM record id, e.g. `67d18fd9385c09281`. Alphanumeric only, so it is safe inside CSS selectors. */
+export const contactIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9]{1,64}$/, 'id must be a contact id returned by listContacts');
+
+/** One row of the Contacts list, as read from the DOM. */
+export const contactListRowSchema = z.object({
+  id: contactIdSchema,
+  name: z.string(),
+  account: z.string(),
+  emailAddress: z.string(),
+  phoneNumber: z.string(),
+});
+export type ContactListRow = z.infer<typeof contactListRowSchema>;

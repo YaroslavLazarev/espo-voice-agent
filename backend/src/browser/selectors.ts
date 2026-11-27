@@ -15,6 +15,16 @@ export const selectors = {
   },
   list: {
     createButton: '#main .header-buttons a[data-name="create"][data-action="create"]',
+    searchInput: '#main .search-container input[data-name="textFilter"]',
+    searchButton: '#main .search-container button[data-action="search"]',
+    row: '#main .list tbody tr.list-row[data-id]',
+    rowName: 'td[data-name="name"]',
+    rowAccount: 'td[data-name="account"]',
+    rowEmail: 'td[data-name="emailAddress"] [data-email-address]',
+    rowPhone: 'td[data-name="phoneNumber"] [data-phone-number]',
+    /** `id` is validated as alphanumeric by the tool schema, so it is safe inside the selector. */
+    rowLink: (id: string) => `#main .list tbody tr.list-row td[data-name="name"] a[data-id="${id}"]`,
+    showMore: '#main [data-action="showMore"]',
   },
   form: {
     salutationSelect: 'select[data-name="salutationName"]',

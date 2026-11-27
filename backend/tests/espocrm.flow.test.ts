@@ -22,6 +22,7 @@ const correctedEmail = `v.agent.${runId}@example.com`;
 
 let browser: Browser;
 let controller: BrowserController;
+let createdId = '';
 
 beforeAll(async () => {
   browser = await launchBrowser(true);
@@ -85,6 +86,27 @@ describe('EspoCRM contact flow', { timeout: 90_000 }, () => {
       phoneNumber: contact.phoneNumber,
     });
     expect((await controller.getScreenState()).view).toBe('contactView');
+    createdId = outcome.record.id;
+  });
+
+  it('finds the created contact in the list and opens it (R10)', async () => {
+    const found = await controller.listContacts(contact.lastName);
+    expect(found).toMatchObject({ hash: '#Contact', search: contact.lastName });
+    expect(found.contacts).toEqual([
+      // The list shows the name without the salutation.
+      expect.objectContaining({ id: createdId, name: `Voice Agent${runId}`, emailAddress: correctedEmail }),
+    ]);
+
+    const opened = await controller.openContact(createdId);
+    expect(opened).toMatchObject({ id: createdId, hash: `#Contact/view/${createdId}`, emailAddress: correctedEmail });
+    // Idempotent: already there.
+    expect((await controller.openContact(createdId)).id).toBe(createdId);
+    await expect(controller.openContact('doesnotexist000')).rejects.toBeInstanceOf(BrowserActionError);
+
+    // Without a search the leftover filter is cleared.
+    const all = await controller.listContacts();
+    expect(all.search).toBe('');
+    expect(all.contacts.length).toBeGreaterThan(1);
   });
 
   it('detects the duplicate dialog and lets the user cancel', async () => {

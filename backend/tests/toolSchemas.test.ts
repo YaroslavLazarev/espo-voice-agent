@@ -12,7 +12,19 @@ describe('tool schemas', () => {
       'saveContact',
       'resolveDuplicate',
       'cancelForm',
+      'listContacts',
+      'openContact',
     ]);
+  });
+
+  it('validates listContacts and openContact args', () => {
+    expect(toolSchemas.listContacts.args.safeParse({}).success).toBe(true);
+    expect(toolSchemas.listContacts.args.safeParse({ search: 'Smith' }).success).toBe(true);
+    expect(toolSchemas.listContacts.args.safeParse({ search: 1 }).success).toBe(false);
+    expect(toolSchemas.openContact.args.safeParse({ id: '67d18fd9385c09281' }).success).toBe(true);
+    expect(toolSchemas.openContact.args.safeParse({}).success).toBe(false);
+    // Ids end up inside a CSS selector: anything but alphanumerics is rejected.
+    expect(toolSchemas.openContact.args.safeParse({ id: 'a"] , body' }).success).toBe(false);
   });
 
   it('validates saveContact and resolveDuplicate args', () => {

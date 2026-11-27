@@ -4,7 +4,7 @@
  */
 import type { FunctionDeclaration } from '@google/genai';
 import { z } from 'zod';
-import { contactFieldsInputSchema } from './contact.ts';
+import { contactFieldsInputSchema, contactIdSchema } from './contact.ts';
 
 const noArgs = z.object({}).strict();
 
@@ -49,6 +49,19 @@ export const toolSchemas = {
   cancelForm: {
     description: 'Discard the create form (only after the user agreed to drop the entered values).',
     args: noArgs,
+  },
+  listContacts: {
+    description:
+      'Open the Contacts list and return the visible contacts (id, name, account, email, phone; first page only). ' +
+      'Optional search filters by name, email or phone; omit it to show all. Fails if the create form has unsaved values.',
+    args: z
+      .object({ search: z.string().trim().max(100).optional().describe('text to search for, e.g. a last name') })
+      .strict(),
+  },
+  openContact: {
+    description:
+      'Open one contact\'s record view and return its saved values. Use an id from listContacts; never invent ids.',
+    args: z.object({ id: contactIdSchema.describe('contact id from listContacts') }).strict(),
   },
 } as const;
 

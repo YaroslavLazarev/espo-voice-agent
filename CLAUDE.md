@@ -2,14 +2,14 @@
 
 Voice-driven AI browser agent built with TypeScript that operates an EspoCRM instance (default: the public demo `https://demo.eu.espocrm.com/`) in real time.
 
-**Core Workflow:** Create a new Contact end-to-end (`Navigate to Contacts -> Open Create Form -> Fill Fields -> Confirm with User -> Save -> Verify Created Record`), supporting live conversational guidance, clarifications, and mid-speech user interruptions (barge-in).
+**Core Workflow:** Create a new Contact end-to-end (`Navigate to Contacts -> Open Create Form -> Fill Fields -> Confirm with User -> Save -> Verify Created Record`), plus browsing (list / search / open existing contacts), supporting live conversational guidance, clarifications, and mid-speech user interruptions (barge-in).
 
 This is a test assignment / short demo: keep solutions simple and avoid over-engineering.
 
 ## Specs (lightweight SDD)
 - `specs/requirements.md` — user stories, acceptance criteria (R*), out of scope.
 - `specs/design.md` — data flow, WS protocol, state machine, tool contracts (§*).
-- `specs/tasks.md` — implementation slices T1–T7 with checkboxes.
+- `specs/tasks.md` — implementation slices T1–T8 with checkboxes.
 
 Before implementing, read the relevant spec sections. If a decision changes, update the spec first, then the code. Tick tasks in `specs/tasks.md` once the verification loop is green.
 
@@ -106,6 +106,8 @@ All tool args are validated with zod. Tools:
 | `saveContact` | **no** | Requires `{ confirmed: true }`; guarded server-side (see below) |
 | `resolveDuplicate` | **no** | `{ action: 'create' \| 'cancel' }`, only after the user decides |
 | `cancelForm` | yes | Discard the create form |
+| `listContacts` | yes | `{ search? }`: open `#Contact` list, apply text filter, return the visible rows (id, name, account, email, phone) |
+| `openContact` | yes | `{ id }` from `listContacts`: open `#Contact/view/{id}` and return its values |
 
 Full contracts: `specs/design.md` §4.
 

@@ -1,6 +1,6 @@
 # Requirements
 
-Voice agent that creates a Contact in EspoCRM while the user watches the browser live and talks to the agent in English.
+Voice agent that creates, lists and opens Contacts in EspoCRM while the user watches the browser live and talks to the agent in English.
 
 ## Glossary
 - **Agent**: Gemini Live session plus the backend tools it calls.
@@ -61,8 +61,16 @@ As a user, I want to interrupt the agent mid-sentence to correct something.
 - R9.1 WHEN the backend↔Gemini connection drops unexpectedly THEN a new session is opened with the same config and the event log shows "reconnected" (the conversation context may be lost).
 - R9.2 WHEN the frontend↔backend connection drops THEN the frontend retries with a short backoff and shows the connection status.
 
+### R10. Browse contacts
+As a user, I want to see the contact list and open a contact by voice.
+- R10.1 WHEN the user asks to see contacts THEN the agent opens the Contacts list and briefly summarizes the visible contacts (names), from the live DOM.
+- R10.2 WHEN the user names a contact or a search term THEN the agent filters the list with EspoCRM's text search; an empty search clears the filter.
+- R10.3 WHEN the user asks to open a contact THEN the agent opens its record view (`#Contact/view/{id}`) and reports name, email and phone read from the page.
+- R10.4 WHEN several contacts match the user's words THEN the agent asks which one; WHEN none match THEN it says so.
+- R10.5 WHEN the create form has unsaved values THEN listing/opening is refused until the user agrees to discard them (same as R4 navigation).
+
 ## Out of Scope
-- Editing, deleting or searching existing contacts; other entities.
+- Editing or deleting existing contacts; advanced filters, sorting, paging beyond the first page; other entities.
 - Contact fields beyond the supported fields.
 - `sessionResumption` handle persistence; multi-user or authentication for the app itself.
 - Local EspoCRM or database containers for tests.

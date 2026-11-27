@@ -51,3 +51,10 @@ Vertical slices. A task is done when its checks pass and the CLAUDE.md verificat
 - [x] `Dockerfile` (Playwright base) + `docker-compose.yml`
 - [x] README: setup, `.env`, run, demo script, known limitations
 - **Check:** fresh clone → README steps → working demo
+
+## T8. Browse contacts — R10 (§4, §5)
+- [x] Selectors for the list rows, text search and "Show more" (verified on the demo)
+- [x] `BrowserController.listContacts(search?)`, `openContact(id)`
+- [x] Tools `listContacts`, `openContact` + dispatcher + system prompt
+- [x] Tests: tool schemas, dispatcher (list/open, dirty form), integration flow (search the created contact → open it)
+- **Check:** "show me the contacts", "find Smith", "open John Smith" work by voice

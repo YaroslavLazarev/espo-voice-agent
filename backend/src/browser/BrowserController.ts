@@ -1,7 +1,9 @@
 import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
 import {
   CONTACT_FIELDS,
+  contactListRowSchema,
   contactValuesSchema,
+  type ContactListRow,
   type ContactFieldsInput,
   type ContactValues,
 } from '../schemas/contact.ts';
@@ -37,6 +39,15 @@ export interface RecordView {
   name: string;
   emailAddress: string;
   phoneNumber: string;
+}
+
+export interface ContactList {
+  hash: string;
+  /** The text filter now applied ('' = none). */
+  search: string;
+  contacts: ContactListRow[];
+  /** More rows exist beyond the first page ("Show more"). */
+  hasMore: boolean;
 }
 
 export type SaveOutcome =
@@ -84,6 +95,15 @@ const INIT_SCRIPT = `
 const TEXT_FIELDS = ['firstName', 'lastName', 'emailAddress', 'phoneNumber'] as const;
 
 const hasAnyValue = (values: ContactValues): boolean => CONTACT_FIELDS.some((field) => values[field] !== '');
+
+/** Leaving a filled create form would make EspoCRM ask "Are you sure?"; the user must decide first. */
+function assertNoUnsavedForm(state: ScreenState): void {
+  if (state.view === 'contactCreate' && state.values !== null && hasAnyValue(state.values)) {
+    throw new BrowserActionError(
+      'The create form has unsaved values. Ask the user whether to discard them, then call cancelForm.',
+    );
+  }
+}
 
 /**
  * Playwright automation of EspoCRM. Knows nothing about Gemini or WebSockets.
@@ -138,15 +158,85 @@ export class BrowserController {
   async navigateToContacts(): Promise<{ hash: string }> {
     const state = await this.getScreenState();
     if (state.view === 'contactList') return { hash: state.hash };
-    if (state.view === 'contactCreate' && state.values !== null && hasAnyValue(state.values)) {
-      throw new BrowserActionError(
-        'The create form has unsaved values. Ask the user whether to discard them, then call cancelForm.',
-      );
-    }
+    assertNoUnsavedForm(state);
     await this.clickVisible(this.page.locator(selectors.nav.contacts).first());
     await this.page.locator(selectors.list.createButton).first().waitFor({ state: 'visible' });
     await this.waitForNetworkIdle();
     return { hash: await this.hash() };
+  }
+
+  /** Opens the list, applies the text filter (`''` clears it) and reads the first page of rows. */
+  async listContacts(search = ''): Promise<ContactList> {
+    const { page } = this;
+    await this.navigateToContacts();
+    const input = page.locator(selectors.list.searchInput).first();
+    await input.waitFor({ state: 'visible' });
+    const wanted = search.trim();
+    // EspoCRM remembers the last filter, so a leftover one is cleared too.
+    if ((await input.inputValue()) !== wanted) {
+      await this.highlight(input);
+      await input.fill(wanted);
+      const response = page
+        .waitForResponse((r) => r.request().method() === 'GET' && /\/api\/v1\/Contact\?/.test(r.url()))
+        .catch(() => undefined);
+      await this.clickVisible(page.locator(selectors.list.searchButton).first());
+      await response;
+    }
+    await this.waitForNetworkIdle();
+    const contacts = await this.readStable(() => this.readListRows());
+    const hasMore = await page.locator(selectors.list.showMore).first().isVisible();
+    return { hash: await this.hash(), search: wanted, contacts, hasMore };
+  }
+
+  private async readListRows(): Promise<ContactListRow[]> {
+    const raw = await this.page.evaluate((s) => {
+      const text = (el: Element | null): string => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+      return Array.from(document.querySelectorAll(s.row)).map((row) => ({
+        id: row.getAttribute('data-id') ?? '',
+        name: text(row.querySelector(s.rowName)),
+        account: text(row.querySelector(s.rowAccount)),
+        emailAddress: row.querySelector(s.rowEmail)?.getAttribute('data-email-address') ?? '',
+        phoneNumber: row.querySelector(s.rowPhone)?.getAttribute('data-phone-number') ?? '',
+      }));
+    }, {
+      row: selectors.list.row,
+      rowName: selectors.list.rowName,
+      rowAccount: selectors.list.rowAccount,
+      rowEmail: selectors.list.rowEmail,
+      rowPhone: selectors.list.rowPhone,
+    });
+    return contactListRowSchema.array().parse(raw);
+  }
+
+  /** Opens `#Contact/view/{id}`: clicks the list row when it is on screen, otherwise sets the hash. */
+  async openContact(id: string): Promise<RecordView> {
+    const { page } = this;
+    const target = `#Contact/view/${id}`;
+    const state = await this.getScreenState();
+    if (state.hash !== target) {
+      assertNoUnsavedForm(state);
+      const link = page.locator(selectors.list.rowLink(id)).first();
+      if (state.view === 'contactList' && (await link.count()) > 0) await this.clickVisible(link);
+      else await page.evaluate((hash) => { location.hash = hash; }, target);
+      await page.waitForFunction((hash) => location.hash === hash, target);
+    }
+    try {
+      return await this.readRecordView();
+    } catch {
+      // An unknown id makes EspoCRM replace the whole app with a 404 page; reload on the list.
+      await this.recoverToContactList();
+      throw new BrowserActionError(`Could not open contact ${id}; call listContacts to get a valid id`);
+    }
+  }
+
+  private async recoverToContactList(): Promise<void> {
+    const { page } = this;
+    await page.evaluate(() => {
+      location.hash = '#Contact';
+    });
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: LOGIN_TIMEOUT_MS });
+    await page.locator(selectors.appShell).waitFor({ state: 'attached', timeout: LOGIN_TIMEOUT_MS });
+    await page.locator(selectors.list.createButton).first().waitFor({ state: 'visible' });
   }
 
   async openCreateContactForm(): Promise<{ hash: string }> {
@@ -292,10 +382,15 @@ export class BrowserController {
       };
     };
 
-    // The detail view re-renders after fetching the saved model; read until two reads agree.
+    // The detail view re-renders after fetching the saved model.
+    return this.readStable(read);
+  }
+
+  /** Reads until two consecutive reads agree (EspoCRM re-renders views after fetching data). */
+  private async readStable<T>(read: () => Promise<T>): Promise<T> {
     let previous = await read();
     for (let attempt = 0; attempt < STABLE_READ_ATTEMPTS; attempt++) {
-      await page.waitForTimeout(STABLE_READ_INTERVAL_MS);
+      await this.page.waitForTimeout(STABLE_READ_INTERVAL_MS);
       const current = await read();
       if (JSON.stringify(current) === JSON.stringify(previous)) return current;
       previous = current;

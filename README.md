@@ -1,6 +1,6 @@
 # EspoCRM Voice Agent
 
-A voice-driven browser agent that creates a Contact in [EspoCRM](https://www.espocrm.com/) while you talk to it.
+A voice-driven browser agent that creates, finds and opens Contacts in [EspoCRM](https://www.espocrm.com/) while you talk to it.
 You speak; Gemini Live listens, drives a real Chromium browser through Playwright, and you watch the CRM page update
 live in the app. The agent fills the form, reads the values back, and saves only after you say "yes". You can
 interrupt it at any time.
@@ -74,6 +74,9 @@ Open <http://localhost:5173>. Vite serves the frontend and proxies `/ws` to the 
    - Its audio stops at once, it changes only the email, and it reads the values back again.
 5. Ask: *"What have you filled in so far?"*. It answers from the live form, not from memory.
 6. Say *"Yes, save it."* The record view opens and the agent reports the saved values.
+7. Say *"Show me the contacts"*, then *"Find Smith"* and *"Open John Smith"*. The agent filters the list with
+   EspoCRM's search, clicks the row, and reads the contact's details from the record view. If several match, it asks
+   which one.
 
 Things to try: saving before confirming (it refuses), leaving out the last name (it asks for it), or creating the same
 person twice (EspoCRM shows a duplicate dialog; the agent asks whether to create anyway or cancel).
@@ -106,8 +109,9 @@ Layout: `shared/` (zod WebSocket protocol), `backend/` (Fastify, Gemini Live ses
 
 ## Known limitations
 
-- **Contacts only, create only:** salutation, first/last name, the primary email and phone. Nothing is edited,
-  searched or deleted.
+- **Contacts only; create, list and open:** salutation, first/last name, the primary email and phone. Existing
+  contacts are read-only (nothing is edited or deleted). The list returns only the first page (20 rows) and uses the
+  plain text search, with no advanced filters or sorting.
 - **Shared public demo:** `demo.eu.espocrm.com` is used by everyone and reset from time to time. It can be slow, and
   the records you create are public.
 - **Reconnects lose context:** if the Gemini connection drops, a new session starts with only a hint about the
